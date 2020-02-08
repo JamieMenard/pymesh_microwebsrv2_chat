@@ -39,7 +39,7 @@ class PymeshConfig:
     DEBUG_LEVEL = 5
 
     # if true, it will start as BLE Server, to be connected with mobile app
-    BLE_API = True
+    BLE_API = False
     BLE_NAME_PREFIX = "PyGo "
     ############################################################
 
