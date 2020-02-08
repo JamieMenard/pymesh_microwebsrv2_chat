@@ -10,25 +10,42 @@ See https://docs.pycom.io/pymesh/licence/ for requesting pymesh firmware.
 Credit to Pycom and MicroWebSrv2 https://github.com/jczic/MicroWebSrv2 for a solid 95% of this.
 
 Parts list per node:
+
 Pycom Lopy4
-Pycom Pytrack (or Pysense to save $10 but lose GPS) 
+
+Pycom Pytrack (or Pysense to save $10 but lose GPS)
+
 Pycom IP67 case
+
 Adafruit 2000ma 3.7v lithium battery
+
 microSD card of some size, formatted
+
 Micro USB to pcb pinout panel mount (find PN)
+
 Right angle headers to squish and jam into the micro USB pcb (mostly as a hack for my lack of soldering skills) (adafruit)
+
 right angle USB cable to be hacked so it fits in the case (no clearance from Pytrack usb to side of pycom case) (get Amazon link)
+
 push pin-ie ish connectors to crimp onto hacked USB cable and push onto headers
 12v IP67 switch from Amazon (get link)
+
 JST connectors that actually fit into Pytrack and the adafruit battery. (link to adafruit)
+
 u.sma to sma for Lora antenna (link)
+
 905 mhz antenna (link)
+
 
 bonus parts;
 u.sma to sma for wifi antenna (link)
+
 2.4 ghz wifi antenna (link)
+
 thin foam to squish between parts
+
 double sided sticky tape to tape battery to lid
+
 
 Software setup (ToDo: move all the things you need to change for your install to easier to find spots)
 All this applies to a device in the US, anywhere else you'll have to do a bit of research for your area and change
@@ -60,10 +77,10 @@ all nodes.
 Anytime the node is online, even if it doesn't have a computer connected to it, all received messages will get logged to the SD card.
 Follow the "Log" link on either page to view it. Refresh to see latest.
 
-The "www" folder is cloned onto the SD and all webpages served from there. Couldn't figure out how to serve the pages from flash and 
+The "www" folder is cloned onto the SD and all webpages served from there. Couldn't figure out how to serve the pages from flash and
 then serve the log from SD. Hack.
 
-I'll add pics/instructions on how I built my nodes, but the parts list is a good start, most things are straight forward. 
+I'll add pics/instructions on how I built my nodes, but the parts list is a good start, most things are straight forward.
 
 General Todo's;
 clean out any files not needed for wshcat
@@ -72,9 +89,9 @@ there's some code that was my attempt to hack in a "mesh status" function, pull 
 
 figure out a better way to "message all"
   there's a multicast IP address in the mesh, but the pymesh.send_mess funtion only takes an MAC not an IP
-  getting a signal message that goes to all IPs would be greatly preferred to the current "loop through all MACs that 
+  getting a signal message that goes to all IPs would be greatly preferred to the current "loop through all MACs that
   we think are currently connected" cuz....
-  
+
 often the mml command to list all nodes is out of date or doesn't work. You can message nodes from command line
 not on the list, and get an ack, but they don't show up in mml.
 
@@ -84,18 +101,5 @@ ideally nuke bluetooth, the wifi/bt/gps/mesh pulls pretty solid power. battery l
 bt and gps adds hours of run time.
 
 post details and code of the lora repeater only solar powered node built from a Mr Beams solar light. It still has issues,
-if it runs out of juice, the node won't reconnect after the battery has recharged. But runs pretty solid if you have 8 hours of 
+if it runs out of juice, the node won't reconnect after the battery has recharged. But runs pretty solid if you have 8 hours of
 sun a day. I don't.
-
-
-
-
-
-
-
-
-
-
-
-
-
