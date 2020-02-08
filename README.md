@@ -69,8 +69,11 @@ for instructions), after it starts up use the repl to run the "mac" command and 
 line 206 "mac_to_house" TODO really, make this easier....
 
 Give everything 60 seconds to load, the AP should have started by then, connect to the wifi ap, navigate to 192.168.1.1 (or whatever
-you changed it too), and click through to the wshcat page. Give that 10 seconds or so to populate a list of nodes, it'll show a
+you changed it too), and click through to the wshcat page.
+
+Give that 10 seconds or so to populate a list of nodes, it'll show a
 "welcome" message and the nodes currently online. Message away!
+
 The first message seems to typically wake up the nodes on the mesh but not go through. The second message will almost always get to
 all nodes.
 
@@ -88,18 +91,20 @@ clean out any files not needed for wshcat
 there's some code that was my attempt to hack in a "mesh status" function, pull it all out
 
 figure out a better way to "message all"
+
   there's a multicast IP address in the mesh, but the pymesh.send_mess funtion only takes an MAC not an IP
-  getting a signal message that goes to all IPs would be greatly preferred to the current "loop through all MACs that
-  we think are currently connected" cuz....
+
+  getting a signal message that goes to all IPs would be greatly preferred to the current "loop through all MACs that we think are currently connected" cuz....
 
 often the mml command to list all nodes is out of date or doesn't work. You can message nodes from command line
+
 not on the list, and get an ack, but they don't show up in mml.
 
 setup a way to programmatically build the list of nodes/names and not have them hard coded.
 
-ideally nuke bluetooth, the wifi/bt/gps/mesh pulls pretty solid power. battery life is at best 12 hours. Turning off
-bt and gps adds hours of run time.
+ideally nuke bluetooth, the wifi/bt/gps/mesh pulls pretty solid power. battery life is at best 12 hours. Turning off bt and gps adds hours of run time.
 
 post details and code of the lora repeater only solar powered node built from a Mr Beams solar light. It still has issues,
+
 if it runs out of juice, the node won't reconnect after the battery has recharged. But runs pretty solid if you have 8 hours of
 sun a day. I don't.

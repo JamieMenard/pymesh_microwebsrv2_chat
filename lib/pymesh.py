@@ -23,10 +23,10 @@ try:
 except:
     from _cli import Cli
 
-try:
-    from ble_rpc import BleRpc
-except:
-    from _ble_rpc import BleRpc
+# try:
+#     from ble_rpc import BleRpc
+# except:
+#     from _ble_rpc import BleRpc
 
 try:
     from pymesh_debug import print_debug
@@ -37,7 +37,7 @@ class Pymesh:
 
     def __init__(self, config, message_cb):
         # print MAC, set MAC is given and restart
-        
+
         self.config = config
         self.mesh = MeshInterface(config, message_cb)
 
@@ -45,7 +45,7 @@ class Pymesh:
         self.deepsleep_timeout = 0
         self.new_lora_mac = None
         # watchdog = Watchdog(meshaging, mesh)
-        
+
         self.mesh.statistics.sleep_function = self.deepsleep_init
         self.mesh.sleep_function = self.deepsleep_init
 
@@ -53,10 +53,10 @@ class Pymesh:
         self.cli.sleep = self.deepsleep_init
         _thread.start_new_thread(self.process, (1,2))
         _thread.start_new_thread(self.cli.process, (1, 2))
-        
-        self.ble_rpc = None
-        if config.get("ble_api", False):
-            self.ble_rpc = BleRpc(self.config, self.mesh)
+
+        # self.ble_rpc = None
+        # if config.get("ble_api", False):
+        #     self.ble_rpc = BleRpc(self.config, self.mesh)
 
 
     def deepsleep_now(self):
@@ -100,7 +100,7 @@ class Pymesh:
 
                 # sending data to pybytes
                 # Pybytes_wrap.process()
-                    
+
                 time.sleep(.5)
                 # time.sleep(1)
                 # print("loop")
@@ -115,7 +115,7 @@ class Pymesh:
             self.deepsleep_now()
 
     def send_mess(self, mac, mess):
-        """ send mess to specified MAC address 
+        """ send mess to specified MAC address
         data is dictionary data = {
             'to': 0x5,
             'b': 'text',
@@ -129,7 +129,7 @@ class Pymesh:
             'ts': time.time(),
         }
         return self.mesh.send_message(data)
-    
+
     def br_set(self, prio, br_mess_cb):
         """ Enable BR functionality on this Node, with priority and callback """
         return self.mesh.br_set(True, prio, br_mess_cb)
@@ -146,9 +146,9 @@ class Pymesh:
 
     def is_connected(self):
         return self.mesh.is_connected()
-    
+
     def send_mess_external(self, ip, port, payload):
-        """ send mess to specified IP+port address 
+        """ send mess to specified IP+port address
         data is dictionary data = {
             'ip': '1:2:3::4',
             'port': 12345,
@@ -163,13 +163,13 @@ class Pymesh:
             'b': payload
         }
         return self.mesh.send_message(data)
-    
+
     def config_get(self):
         return self.config
-    
+
     def mac(self):
         return self.mesh.mesh.MAC
-    
+
     def ot_cli(self, command):
         """ Call OpenThread internal CLI """
         return self.mesh.ot_cli(command)
@@ -193,4 +193,3 @@ class Pymesh:
             DEBUG_CRIT = const(1)
             DEBUG_NONE = const(0) """
         return self.mesh.debug_level(level)
-
