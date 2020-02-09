@@ -36,7 +36,7 @@ class Cli:
         # lamda functions
         self.sleep = None
         return
-    
+
     def process(self, arg1, arg2):
         last_mesh_pairs = []
         last_mesh_mac_list = []
@@ -93,6 +93,16 @@ class Cli:
                         last_mesh_pairs = mesh_pairs
                     print('last_mesh_pairs', json.dumps(last_mesh_pairs))
 
+                elif cmd == 'all':
+                    data = {
+                        'to': 'ff03::1',
+                        'ty': 0,
+                        'b': "wwwwwoooooooords like Hello World",
+                        'id': 12345,
+                        'ts': int(time.time()),
+                    }
+                    print(self.mesh.send_message(data))
+
                 elif cmd == 's':
                     try:
                         to = int(input('(to)<'))
@@ -132,7 +142,7 @@ class Cli:
                     except:
                         print("Gps:", (Gps.lat, Gps.lon))
                         continue
-                    
+
                     Gps.set_location(lat, lon)
                     print("Gps:", (Gps.lat, Gps.lon))
 
@@ -177,7 +187,7 @@ class Cli:
                     self.mesh.mesh.mesh.mesh.deinit()
                     if self.sleep:
                         self.sleep(1)
-                        
+
                 # elif cmd == "pyb":
                 #     # print("Pybytes debug menu, Pybytes connection is ", Pybytes_wrap.is_connected())
                 #     state = 1
@@ -228,14 +238,14 @@ class Cli:
                     data = {
                         'ip': ip,
                         'port': port,
-                        'b': payload 
+                        'b': payload
                     }
                     print("Send BR message:", data)
                     self.mesh.send_message(data)
 
                 elif cmd == "buf":
                     print("Buffer info:",self.mesh.mesh.mesh.mesh.cli("bufferinfo"))
-                    
+
                 elif cmd == "ot":
                     cli = input('(openthread cli)<')
                     print(self.mesh.mesh.mesh.mesh.cli(cli))
@@ -247,12 +257,13 @@ class Cli:
                         self.mesh.debug_level(level)
                     except:
                         print_debug(1, "error parsing")
-                
+
                 elif cmd == "config":
                     print(self.mesh.config)
 
                 else:
                     print("List of available commands")
+                    print("all - send a test message to all nodes")
                     print("ip - display current IPv6 unicast addresses")
                     print("mac - set or display the current LoRa MAC address")
                     print("self - display all info about current node")
@@ -272,7 +283,7 @@ class Cli:
                     print("debug - set debug level")
                     print("config - print config file contents")
                     print("gps - get/set location coordinates")
-                    
+
         except KeyboardInterrupt:
             print('cli Got Ctrl-C')
         except Exception as e:

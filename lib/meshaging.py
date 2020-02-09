@@ -37,7 +37,7 @@ class Meshaging:
         message = Message((mac, msg_type, payload, id, ts))
         self.dict[mac] = message
         print("Added new message for %X: %s" % (mac, str(payload)))
-        
+
         return True
 
     def add_rcv_message(self, message):
@@ -75,7 +75,7 @@ class Meshaging:
                 print('ACK from dog message, start picture sending')
                 del self.dict[message.mac]
                 self.send_message(message.mac, message.TYPE_IMAGE, 'dog.jpg', message.id, time.time())
-                
+
                 if self.on_rcv_message:
                     mess = Message((message.mac, message.TYPE_TEXT, 'Receiving the picture', message.id+1, time.time()))
                     self.on_rcv_message(mess)
@@ -112,9 +112,9 @@ class Meshaging:
         message.id = message.id + 1
         if self.on_rcv_message:
             self.on_rcv_message(message)
-        
+
         self.send_message(message.mac, message.TYPE_TEXT, 'Picture was received', message.id+1, time.time())
-        
+
         pass
 
 class Message:
@@ -212,7 +212,7 @@ class Send_File:
             self.state = DONE
             return
         self.size = 0
-        
+
 
         self.start = time.time()
         self.state = INIT
