@@ -94,10 +94,11 @@ class Cli:
                     print('last_mesh_pairs', json.dumps(last_mesh_pairs))
 
                 elif cmd == 'all':
+                    txt = input('(text/filename)<')
                     data = {
                         'to': 'ff03::1',
                         'ty': 0,
-                        'b': "wwwwwoooooooords like Hello World",
+                        'b': txt,
                         'id': 12345,
                         'ts': int(time.time()),
                     }

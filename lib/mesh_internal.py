@@ -164,8 +164,6 @@ class MeshInternal:
     def send_message(self, message, answer = None):
         """ actual sending of a message on socket """
         payload = message.pack(self.MAC, answer)
-        print("the payload is")
-        print(payload)
         pack_type = self.PACK_MESSAGE
         if message.type == message.TYPE_IMAGE:
             pack_type = self.PACK_FILE_SEND

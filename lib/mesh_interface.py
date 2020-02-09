@@ -8,6 +8,7 @@
 
 import time
 from machine import Timer
+from struct import *
 import _thread
 
 try:
@@ -21,9 +22,9 @@ except:
     from _statistics import Statistics
 
 try:
-    from meshaging import Meshaging
+    from meshaging import Meshaging, Message
 except:
-    from _meshaging import Meshaging
+    from _meshaging import Meshaging, Message
 
 try:
     from pymesh_debug import print_debug
@@ -48,10 +49,12 @@ class MeshInterface:
         all modules that uses Mesh should call only this class methods """
 
     INTERVAL = const(10)
+    PACK_MESSAGE = '!QHH'  # mac, id, payload size, and payload(char[])
 
     def __init__(self, config, message_cb):
         self.lock = _thread.allocate_lock()
         self.meshaging = Meshaging(self.lock)
+        self.message = Message()
         self.config = config
         self.mesh = MeshInternal(self.meshaging, config, message_cb)
         self.sleep_function = None
@@ -168,12 +171,14 @@ class MeshInterface:
     def send_message(self, data):
         ## WARNING: is locking required for just adding
         ret = False
-        print(data)
         if data['to'] == 'ff03::1':
-            print("Yup, we're doing this")
+            sender_mac = self.mesh.MAC
+            n = len(data['b'])
+            build_data_pack = pack(self.PACK_MESSAGE, sender_mac, data['id'], n)
+            payload = build_data_pack + data['b']
             if self.lock.acquire():
                 print("Send message to all")
-                ret = self.mesh.send_pack(self.mesh.PACK_MESSAGE, b'\x00\x00\x00\x00\x00\x00\x00\x0309\x00\x04wordsofmeaning', 'ff03::1')
+                ret = self.mesh.send_pack(self.mesh.PACK_MESSAGE, payload, 'ff03::1')
                 # send messages ASAP
                 self.mesh.process_messages()
                 self.lock.release()
