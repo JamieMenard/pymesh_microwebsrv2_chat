@@ -91,13 +91,15 @@ def WSJoinChat(webSocket) :
         house = mac_to_house(my_mac)
         webSocket.SendTextMessage('<WELCOME %s>' % house)
         webSocket.SendTextMessage("List of current %s" % houses_string)
-        for mac in macs[0]:
-            if mac == my_mac:
-                print("skip")
-            else:
-                pymesh.send_mess(mac, msg1)
-                time.sleep(2)
-                pymesh.send_mess(mac, msg2)
+        pymesh.send_mess('ff03::1', msg1)
+        pymesh.send_mess('ff03::1', msg2)
+        # for mac in macs[0]:
+        #     if mac == my_mac:
+        #         print("skip")
+        #     else:
+        #         pymesh.send_mess(mac, msg1)
+        #         time.sleep(2)
+        #         pymesh.send_mess(mac, msg2)
         time.sleep(1)
 
 # ------------------------------------------------------------------------
@@ -112,12 +114,13 @@ def OnWSChatTextMsg(webSocket, msg) :
         for ws in _chatWebSockets :
             #ws.SendTextMessage(': %s' % new_msg)
             ws.SendTextMessage(str(new_msg))
-        for mac in macs[0]:
-            if mac == my_mac:
-                continue
-            else:
-                pymesh.send_mess(mac, str(new_msg))
-                time.sleep(2)
+        pymesh.send_mess('ff03::1', new_msg)
+        # for mac in macs[0]:
+        #     if mac == my_mac:
+        #         continue
+        #     else:
+        #         pymesh.send_mess(mac, str(new_msg))
+        #         time.sleep(2)
 
 # ------------------------------------------------------------------------
 
@@ -132,12 +135,13 @@ def OnWSChatClosed(webSocket) :
             _chatWebSockets.remove(webSocket)
             for ws in _chatWebSockets :
                 ws.SendTextMessage(msg1)
-        for mac in macs[0]:
-            if mac == my_mac:
-                continue
-            else:
-                pymesh.send_mess(mac, msg1)
-                time.sleep(2)
+        pymesh.send_mess('ff03::1', msg1)
+        # for mac in macs[0]:
+        #     if mac == my_mac:
+        #         continue
+        #     else:
+        #         pymesh.send_mess(mac, msg1)
+        #         time.sleep(2)
 
 def OnMWS2Logging(microWebSrv2, msg, msgType) :
     print('Log from custom function: %s' % msg)
@@ -301,7 +305,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Rangeshouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="Jamieshouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.EXT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");

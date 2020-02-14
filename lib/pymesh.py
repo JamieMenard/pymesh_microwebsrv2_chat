@@ -23,10 +23,10 @@ try:
 except:
     from _cli import Cli
 
-# try:
-#     from ble_rpc import BleRpc
-# except:
-#     from _ble_rpc import BleRpc
+try:
+    from ble_rpc import BleRpc
+except:
+    from _ble_rpc import BleRpc
 
 try:
     from pymesh_debug import print_debug
@@ -54,9 +54,9 @@ class Pymesh:
         _thread.start_new_thread(self.process, (1,2))
         _thread.start_new_thread(self.cli.process, (1, 2))
 
-        # self.ble_rpc = None
-        # if config.get("ble_api", False):
-        #     self.ble_rpc = BleRpc(self.config, self.mesh)
+        self.ble_rpc = None
+        if config.get("ble_api", False):
+            self.ble_rpc = BleRpc(self.config, self.mesh)
 
 
     def deepsleep_now(self):

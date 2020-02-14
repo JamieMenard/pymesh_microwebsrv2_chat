@@ -366,6 +366,7 @@ class MeshInternal:
             return False
 
         print("Send pack: 0x%X to IP %s" % (pack_type, ip))
+        print(data)
 
         # check not to send same (packet, destination) too often
         # if not self._check_to_send(pack_type, ip):

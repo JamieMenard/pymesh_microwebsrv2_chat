@@ -8,6 +8,7 @@
 
 import time
 from machine import Timer
+from struct import *
 import _thread
 
 try:
@@ -21,9 +22,9 @@ except:
     from _statistics import Statistics
 
 try:
-    from meshaging import Meshaging
+    from meshaging import Meshaging, Message
 except:
-    from _meshaging import Meshaging
+    from _meshaging import Meshaging, Message
 
 try:
     from pymesh_debug import print_debug
@@ -48,10 +49,12 @@ class MeshInterface:
         all modules that uses Mesh should call only this class methods """
 
     INTERVAL = const(10)
+    PACK_MESSAGE = '!QHH'  # mac, id, payload size, and payload(char[])
 
     def __init__(self, config, message_cb):
         self.lock = _thread.allocate_lock()
         self.meshaging = Meshaging(self.lock)
+        self.message = Message()
         self.config = config
         self.mesh = MeshInternal(self.meshaging, config, message_cb)
         self.sleep_function = None
@@ -66,7 +69,7 @@ class MeshInterface:
         self.mesh.br_handler = self.br_handler
 
         self.end_device_m = False
-        
+
         self.statistics = Statistics(self.meshaging)
         self._timer = Timer.Alarm(self.periodic_cb, self.INTERVAL, periodic=True)
 
@@ -168,7 +171,18 @@ class MeshInterface:
     def send_message(self, data):
         ## WARNING: is locking required for just adding
         ret = False
-
+        if data['to'] == 'ff03::1':
+            sender_mac = self.mesh.MAC
+            n = len(data['b'])
+            build_data_pack = pack(self.PACK_MESSAGE, sender_mac, data['id'], n)
+            payload = build_data_pack + data['b']
+            if self.lock.acquire():
+                print("Send message to all")
+                ret = self.mesh.send_pack(self.mesh.PACK_MESSAGE, payload, 'ff03::1')
+                # send messages ASAP
+                self.mesh.process_messages()
+                self.lock.release()
+            return ret
         # check if message is for BR
         if len(data.get('ip','')) > 0:
             with self.lock:
@@ -270,11 +284,11 @@ class MeshInterface:
         print("Sending BR data to Pybytes")
         # res = Pybytes_wrap.send_signal(self.mesh.MAC, id + ": " + str(data))
         pass
-    
+
     def br_set(self, enable, prio = 0, br_mess_cb = None):
         with self.lock:
             self.mesh.border_router(enable, prio, br_mess_cb)
-    
+
     def ot_cli(self, command):
         """ Executes commands in Openthread CLI,
         see https://github.com/openthread/openthread/tree/master/src/cli """
@@ -283,14 +297,14 @@ class MeshInterface:
     def end_device(self, state = None):
         if state is None:
             # read status of end_device
-            state = self.ot_cli('routerrole') 
+            state = self.ot_cli('routerrole')
             return state == 'Disabled'
         self.end_device_m = False
         state_str = 'enable'
         if state == True:
             self.end_device_m = True
             state_str = 'disable'
-        ret = self.ot_cli('routerrole '+ state_str) 
+        ret = self.ot_cli('routerrole '+ state_str)
         return ret == ''
 
     def leader_priority(self, weight = None):
@@ -326,11 +340,11 @@ class MeshInterface:
         except:
             ret = self.debug_level
         debug_level(ret)
-        
+
     def parent(self):
         """ Returns the Parent MAC for the current Child node
         Returns 0 if node is not Child """
-         
+
         if self.mesh.mesh.mesh.state() != self.mesh.mesh.STATE_CHILD:
             print("Not Child, no Parent")
             return 0
