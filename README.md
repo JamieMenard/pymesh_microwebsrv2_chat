@@ -1,5 +1,8 @@
 # pymesh_microwebsrv2_chat
 
+Ah, further update, multicast the way I have it written is just broken. It somehow locks up all nodes. Said I was a hack.
+Rewriting things to go back to sending individual messages to a preset list of nodes. Slower, and means hard coded nodes, but was more stable.
+
 UNSTABLE IF ALL NODES ARE NOT DIRECT NEIGHBORS OF LEADER
 Not exactly sure what's happening, but sending multicast messages 
 Over more then one hop borks things.
