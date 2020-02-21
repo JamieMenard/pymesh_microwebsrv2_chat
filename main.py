@@ -20,9 +20,11 @@ house_dict = {"Jamies_House" : 1,
               "Susans_House" : 7,
               "Tams_House" : 8,
               "Bens_House" : 9,
+              "Garage" : 10,
               "Repeater1" : 15,
-              "Repeater2" : 16,
-              "MountainRepeater" : 20
+              "MountainRepeater" : 20,
+              "Portable1" : 25,
+              "Portable2" : 26
               }
 
 # try:
@@ -167,7 +169,7 @@ print()
 def get_macs_for_mess():
     house_mac_mess_list = []
     for k, v in house_dict.items():
-        if v == 20 or v == 16 or v ==15:
+        if v == 20 or v ==15:
             print("Not adding repeaters to list")
         else:
             house_mac_mess_list.append(v)
@@ -319,8 +321,10 @@ py = Pycoproc()
 mac = pymesh.mac()
 # if mac > 10:
 #     pymesh.end_device(True)
-# if mac == 5:
-#     pymesh.leader_priority(255)
+if mac == 20:
+     pymesh.leader_priority(255)
+elif mac == 15:
+     pymesh.leader_priority(250)
 
 while not pymesh.is_connected():
     print(pymesh.status_str())
