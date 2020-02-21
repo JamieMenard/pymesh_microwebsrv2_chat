@@ -11,7 +11,19 @@ import socket
 import time
 import uos
 
-
+house_dict = {"Jamies_House" : 1,
+              "Bobs_House" : 2,
+              "Ranges_House" : 3,
+              "Johns_House" : 4,
+              "Dennis_House" : 5,
+              "Marks_House" : 6,
+              "Susans_House" : 7,
+              "Tams_House" : 8,
+              "Bens_House" : 9,
+              "Repeater1" : 15,
+              "Repeater2" : 16,
+              "MountainRepeater" : 20
+              }
 
 # try:
 from pymesh_config import PymeshConfig
@@ -78,8 +90,8 @@ def WSJoinChat(webSocket) :
     webSocket.OnClosed      = OnWSChatClosed
     addr = webSocket.Request.UserAddress
     my_mac = pymesh.mesh.mesh.MAC
-    macs = pop_mac_list()
-    houses_string = mac_to_house_list_string(macs)
+    macs = get_macs_for_mess()
+    houses_string = pop_mac_list()
     house = mac_to_house(my_mac)
     msg1 = ('<%s HAS JOINED THE CHAT>' % house)
     msg2 = ("List of current %s" % houses_string)
@@ -91,22 +103,22 @@ def WSJoinChat(webSocket) :
         house = mac_to_house(my_mac)
         webSocket.SendTextMessage('<WELCOME %s>' % house)
         webSocket.SendTextMessage("List of current %s" % houses_string)
-        pymesh.send_mess('ff03::1', msg1)
-        pymesh.send_mess('ff03::1', msg2)
-        # for mac in macs[0]:
-        #     if mac == my_mac:
-        #         print("skip")
-        #     else:
-        #         pymesh.send_mess(mac, msg1)
-        #         time.sleep(2)
-        #         pymesh.send_mess(mac, msg2)
-        time.sleep(1)
+        # pymesh.send_mess('ff03::1', msg1)
+        # pymesh.send_mess('ff03::1', msg2)
+        for mac in macs:
+            if mac == my_mac:
+                print("skip")
+            else:
+                pymesh.send_mess(mac, msg1)
+                time.sleep(1.5)
+                pymesh.send_mess(mac, msg2)
+                time.sleep(1.5)
 
 # ------------------------------------------------------------------------
 
 def OnWSChatTextMsg(webSocket, msg) :
     addr = webSocket.Request.UserAddress
-    macs = pop_mac_list()
+    macs = get_macs_for_mess()
     my_mac = pymesh.mesh.mesh.MAC
     house = mac_to_house(my_mac)
     new_msg = ('%s: %s' % (str(house), msg))
@@ -114,19 +126,19 @@ def OnWSChatTextMsg(webSocket, msg) :
         for ws in _chatWebSockets :
             #ws.SendTextMessage(': %s' % new_msg)
             ws.SendTextMessage(str(new_msg))
-        pymesh.send_mess('ff03::1', new_msg)
-        # for mac in macs[0]:
-        #     if mac == my_mac:
-        #         continue
-        #     else:
-        #         pymesh.send_mess(mac, str(new_msg))
-        #         time.sleep(2)
+        # pymesh.send_mess('ff03::1', new_msg)
+        for mac in macs:
+            if mac == my_mac:
+                continue
+            else:
+                pymesh.send_mess(mac, str(new_msg))
+                time.sleep(1)
 
 # ------------------------------------------------------------------------
 
 def OnWSChatClosed(webSocket) :
     addr = webSocket.Request.UserAddress
-    macs = pop_mac_list()
+    macs = get_macs_for_mess()
     my_mac = pymesh.mesh.mesh.MAC
     house = mac_to_house(my_mac)
     msg1 = ('<%s HAS LEFT THE CHAT>' % house)
@@ -135,13 +147,13 @@ def OnWSChatClosed(webSocket) :
             _chatWebSockets.remove(webSocket)
             for ws in _chatWebSockets :
                 ws.SendTextMessage(msg1)
-        pymesh.send_mess('ff03::1', msg1)
-        # for mac in macs[0]:
-        #     if mac == my_mac:
-        #         continue
-        #     else:
-        #         pymesh.send_mess(mac, msg1)
-        #         time.sleep(2)
+        # pymesh.send_mess('ff03::1', msg1)
+        for mac in macs:
+            if mac == my_mac:
+                continue
+            else:
+                pymesh.send_mess(mac, msg1)
+                time.sleep(1)
 
 def OnMWS2Logging(microWebSrv2, msg, msgType) :
     print('Log from custom function: %s' % msg)
@@ -152,19 +164,25 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 
 print()
 
+def get_macs_for_mess():
+    house_mac_mess_list = []
+    for k, v in house_dict.items():
+        if v == 20 or v == 16 or v ==15:
+            print("Not adding repeaters to list")
+        else:
+            house_mac_mess_list.append(v)
+    print("House mess list %s" % house_mac_mess_list)
+    return house_mac_mess_list
+
+
 def mac_to_house(mac):
-    house_dict = {"Repeater2" : 1,
-                  "Bobs_House" : 2,
-                  "Ranges_House" : 3,
-                  "Repeater1" : 4,
-                  "Jamies_House" : 5}
     for k, v in house_dict.items():
         if mac == v:
             return k
 
 def mac_to_house_list_string(macs):
     house_list = []
-    for mac in macs[0]:
+    for mac in macs:
         house = mac_to_house(mac)
         house_list.append(house)
     house_list_string = ' Houses online are: '
@@ -172,12 +190,17 @@ def mac_to_house_list_string(macs):
         house_list_string += (x) + ' , '
     return house_list_string
 
+# Not useable while "mml" command only gets nodes connected to leader
 def pop_mac_list():
     macs = pymesh.mesh.get_mesh_mac_list()
     while len(macs[0]) == 0:
         time.sleep(4)
         macs = pymesh.mesh.get_mesh_mac_list()
-    return macs
+    mac_list = []
+    for mac in macs[0]:
+        mac_list.append(mac)
+    house_online_string = mac_to_house_list_string(mac_list)
+    return house_online_string
 
 def copy(s, t):
     try:
@@ -296,8 +319,8 @@ py = Pycoproc()
 mac = pymesh.mac()
 # if mac > 10:
 #     pymesh.end_device(True)
-if mac == 5:
-    pymesh.leader_priority(255)
+# if mac == 5:
+#     pymesh.leader_priority(255)
 
 while not pymesh.is_connected():
     print(pymesh.status_str())
@@ -305,7 +328,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Rangeshouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="BobsHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.EXT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
