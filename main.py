@@ -192,7 +192,7 @@ def mac_to_house_list_string(macs):
         house_list_string += (x) + ' , '
     return house_list_string
 
-# Not useable while "mml" command only gets nodes connected to leader
+# Not fully useable while "mml" command only gets nodes connected to leader
 def pop_mac_list():
     macs = pymesh.mesh.get_mesh_mac_list()
     while len(macs[0]) == 0:
@@ -203,6 +203,31 @@ def pop_mac_list():
         mac_list.append(mac)
     house_online_string = mac_to_house_list_string(mac_list)
     return house_online_string
+
+def send_battery_voltage(sending_mac):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+        return
+    volts = str(py.read_battery_voltage())
+    own_mac = str(pymesh.mesh.mesh.MAC)
+    msg = ('Mac Address %s battery level is: %s' % (own_mac, volts))
+    with _chatLock :
+        for ws in _chatWebSockets :
+                ws.SendTextMessage(msg)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(1.5)
+
+def send_self_info(sending_mac):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+        return
+    node_info = str(pymesh.mesh.get_node_info())
+    msg = ("self info: %s" % node_info)
+    with _chatLock :
+        for ws in _chatWebSockets :
+                ws.SendTextMessage(msg)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(3)
 
 def copy(s, t):
     try:
@@ -222,17 +247,19 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     ''' callback triggered when a new packet arrived '''
     print('Incoming %d bytes from %s (port %d):' %
             (len(rcv_data), rcv_ip, rcv_port))
-    # print(py.read_battery_voltage())
-    #macs = pop_mac_list()
     msg = rcv_data.decode("utf-8")
-    # if py.read_battery_voltage() < 3.2:
-    #     own_mac = str(pymesh.mesh.mesh.MAC)
-    #     with _chatLock :
-    #         for ws in _chatWebSockets :
-    #             ws.SendTextMessage('Mac Address %s has a low battery' % (own_mac))
-    with _chatLock :
-        for ws in _chatWebSockets :
-            ws.SendTextMessage('%s' % (msg))
+    print(msg[:13])
+    if msg[:13] == "JM batt level":
+        sending_mac = msg[14:]
+        print(sending_mac)
+        send_battery_voltage(sending_mac)
+    elif msg[:12] == "JM send self":
+        sending_mac = msg[13:]
+        send_self_info(sending_mac)
+    else:
+        with _chatLock :
+            for ws in _chatWebSockets :
+                ws.SendTextMessage('%s' % (msg))
 
     f = open('/sd/www/chat.txt', 'a+')
     f.write('%s\n' % msg)
@@ -315,8 +342,6 @@ pymesh_config = PymeshConfig.read_config()
 #initialize Pymesh
 pymesh = Pymesh(pymesh_config, new_message_cb)
 py = Pycoproc()
-# print("Battery Voltage is:")
-# print(py.read_battery_voltage())
 
 mac = pymesh.mac()
 # if mac > 10:
