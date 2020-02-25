@@ -6,6 +6,7 @@ from pycoproc import Pycoproc
 from time          import sleep
 from _thread       import allocate_lock
 
+import machine
 import os
 import pycom
 import socket
@@ -176,15 +177,26 @@ def set_time(sending_mac, msg):
     if len(sending_mac) == 0:
         print("Mac address format wrong")
         return
-    print(sending_mac)
     time_from_message_string = msg[15:]
-    print(time_from_message_string)
     time_from_message_tuple = tuple(map(int, time_from_message_string.split(" ")))
-    print(time_from_message_tuple)
     rtc.init(time_from_message_tuple)
     msg = "Time Set"
-    pymesh.send_mess(sending_mac, str(msg))
-    time.sleep(2)
+    time.sleep(1)
+    with _chatLock :
+        for ws in _chatWebSockets :
+                ws.SendTextMessage(msg)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(2)
+
+def how_time_set(sending_mac):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+    else:
+        now_time = current_time()
+        msg = "Current:" + now_time + " Else, year month day hours minutes seconds micros timezone"
+        time.sleep(1)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(2)
 
 def get_macs_for_mess():
     house_mac_mess_list = []
@@ -231,6 +243,7 @@ def send_battery_voltage(sending_mac):
     volts = str(py.read_battery_voltage())
     own_mac = str(pymesh.mesh.mesh.MAC)
     msg = ('Mac Address %s battery level is: %s' % (own_mac, volts))
+    time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
                 ws.SendTextMessage(msg)
@@ -243,6 +256,7 @@ def send_self_info(sending_mac):
         return
     node_info = str(pymesh.mesh.get_node_info())
     msg = ("self info: %s" % node_info)
+    time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
                 ws.SendTextMessage(msg)
@@ -268,7 +282,6 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     print('Incoming %d bytes from %s (port %d):' %
             (len(rcv_data), rcv_ip, rcv_port))
     msg = rcv_data.decode("utf-8")
-    print(msg[:13])
     if msg[:13] == "JM batt level":
         sending_mac = msg[14:]
         print(sending_mac)
@@ -283,13 +296,7 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         set_time(sending_mac, msg)
     elif msg[:10] == "JM how set":
         sending_mac = msg[11:]
-        if len(sending_mac) == 0:
-            print("Mac address format wrong")
-        else:
-            now_time = current_time()
-            msg = "Current:" + now_time + " Else, year month day hours minutes seconds micros timezone"
-            pymesh.send_mess(sending_mac, str(msg))
-            time.sleep(2)
+        how_time_set(sending_mac)
     else:
         with _chatLock :
             for ws in _chatWebSockets :
@@ -368,7 +375,6 @@ except:
 
 
 
-
 # read config file, or set default values
 pymesh_config = PymeshConfig.read_config()
 
@@ -376,7 +382,7 @@ pymesh_config = PymeshConfig.read_config()
 #initialize Pymesh
 pymesh = Pymesh(pymesh_config, new_message_cb)
 py = Pycoproc()
-
+rtc = RTC()
 mac = pymesh.mac()
 # if mac > 10:
 #     pymesh.end_device(True)
