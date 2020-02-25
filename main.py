@@ -1,3 +1,4 @@
+from machine import RTC
 from machine import SD
 from MicroWebSrv2  import *
 from network import WLAN
@@ -9,6 +10,7 @@ import os
 import pycom
 import socket
 import time
+import utime
 import uos
 
 house_dict = {"Jamies_House" : 1,
@@ -166,6 +168,24 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 
 print()
 
+def current_time():
+    current_time = utime.localtime()
+    return str(current_time)
+
+def set_time(sending_mac, msg):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+        return
+    print(sending_mac)
+    time_from_message_string = msg[15:]
+    print(time_from_message_string)
+    time_from_message_tuple = tuple(map(int, time_from_message_string.split(" ")))
+    print(time_from_message_tuple)
+    rtc.init(time_from_message_tuple)
+    msg = "Time Set"
+    pymesh.send_mess(sending_mac, str(msg))
+    time.sleep(2)
+
 def get_macs_for_mess():
     house_mac_mess_list = []
     for k, v in house_dict.items():
@@ -258,6 +278,18 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         send_self_info(sending_mac)
     elif msg[:8] == "JM RESET":
         machine.reset()
+    elif msg[:11] == "JM set time":
+        sending_mac = msg[12:14]
+        set_time(sending_mac, msg)
+    elif msg[:10] == "JM how set":
+        sending_mac = msg[11:]
+        if len(sending_mac) == 0:
+            print("Mac address format wrong")
+        else:
+            now_time = current_time()
+            msg = "Current:" + now_time + " Else, year month day hours minutes seconds micros timezone"
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(2)
     else:
         with _chatLock :
             for ws in _chatWebSockets :
@@ -359,7 +391,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Garage", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="Rangeshouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
