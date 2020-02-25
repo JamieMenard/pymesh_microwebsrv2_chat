@@ -1,3 +1,4 @@
+from machine import RTC
 from machine import SD
 from MicroWebSrv2  import *
 from network import WLAN
@@ -5,10 +6,12 @@ from pycoproc import Pycoproc
 from time          import sleep
 from _thread       import allocate_lock
 
+import machine
 import os
 import pycom
 import socket
 import time
+import utime
 import uos
 
 house_dict = {"Jamies_House" : 1,
@@ -166,6 +169,35 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 
 print()
 
+def current_time():
+    current_time = utime.localtime()
+    return str(current_time)
+
+def set_time(sending_mac, msg):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+        return
+    time_from_message_string = msg[15:]
+    time_from_message_tuple = tuple(map(int, time_from_message_string.split(" ")))
+    rtc.init(time_from_message_tuple)
+    msg = "Time Set"
+    time.sleep(1)
+    with _chatLock :
+        for ws in _chatWebSockets :
+                ws.SendTextMessage(msg)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(2)
+
+def how_time_set(sending_mac):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+    else:
+        now_time = current_time()
+        msg = "Current:" + now_time + " Else, year month day hours minutes seconds micros timezone"
+        time.sleep(1)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(2)
+
 def get_macs_for_mess():
     house_mac_mess_list = []
     for k, v in house_dict.items():
@@ -211,6 +243,7 @@ def send_battery_voltage(sending_mac):
     volts = str(py.read_battery_voltage())
     own_mac = str(pymesh.mesh.mesh.MAC)
     msg = ('Mac Address %s battery level is: %s' % (own_mac, volts))
+    time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
                 ws.SendTextMessage(msg)
@@ -223,6 +256,7 @@ def send_self_info(sending_mac):
         return
     node_info = str(pymesh.mesh.get_node_info())
     msg = ("self info: %s" % node_info)
+    time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
                 ws.SendTextMessage(msg)
@@ -248,7 +282,6 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     print('Incoming %d bytes from %s (port %d):' %
             (len(rcv_data), rcv_ip, rcv_port))
     msg = rcv_data.decode("utf-8")
-    print(msg[:13])
     if msg[:13] == "JM batt level":
         sending_mac = msg[14:]
         print(sending_mac)
@@ -258,6 +291,12 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         send_self_info(sending_mac)
     elif msg[:8] == "JM RESET":
         machine.reset()
+    elif msg[:11] == "JM set time":
+        sending_mac = msg[12:14]
+        set_time(sending_mac, msg)
+    elif msg[:10] == "JM how set":
+        sending_mac = msg[11:]
+        how_time_set(sending_mac)
     else:
         with _chatLock :
             for ws in _chatWebSockets :
@@ -336,7 +375,6 @@ except:
 
 
 
-
 # read config file, or set default values
 pymesh_config = PymeshConfig.read_config()
 
@@ -344,7 +382,7 @@ pymesh_config = PymeshConfig.read_config()
 #initialize Pymesh
 pymesh = Pymesh(pymesh_config, new_message_cb)
 py = Pycoproc()
-
+rtc = RTC()
 mac = pymesh.mac()
 # if mac > 10:
 #     pymesh.end_device(True)
@@ -359,7 +397,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Garage", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="Rangeshouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
