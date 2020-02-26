@@ -1,5 +1,5 @@
+from L76GNSS import L76GNSS
 from machine import RTC
-from machine import SD
 from MicroWebSrv2  import *
 from network import WLAN
 from pycoproc import Pycoproc
@@ -7,28 +7,13 @@ from time          import sleep
 from _thread       import allocate_lock
 
 import machine
+import file_ops
 import os
 import pycom
 import socket
 import time
 import utime
 import uos
-
-house_dict = {"Jamies_House" : 1,
-              "Bobs_House" : 2,
-              "Ranges_House" : 3,
-              "Johns_House" : 4,
-              "Dennis_House" : 5,
-              "Marks_House" : 6,
-              "Susans_House" : 7,
-              "Tams_House" : 8,
-              "Bens_House" : 9,
-              "Garage" : 10,
-              "Repeater1" : 15,
-              "MountainRepeater" : 20,
-              "Portable1" : 25,
-              "Portable2" : 26
-              }
 
 # try:
 from pymesh_config import PymeshConfig
@@ -39,6 +24,23 @@ from pymesh_config import PymeshConfig
 from pymesh import Pymesh
 # except:
 #     from _pymesh import Pymesh
+
+# house_dict = {"Jamies_House" : 1,
+#               "Bobs_House" : 2,
+#               "Ranges_House" : 3,
+#               "Johns_House" : 4,
+#               "Dennis_House" : 5,
+#               "Marks_House" : 6,
+#               "Susans_House" : 7,
+#               "Tams_House" : 8,
+#               "Bens_House" : 9,
+#               "Garage" : 10,
+#               "Repeater1" : 15,
+#               "MountainRepeater" : 20,
+#               "Portable1" : 25,
+#               "Portable2" : 26
+#               }
+
 
 # ============================================================================
 
@@ -169,6 +171,45 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 
 print()
 
+def create_house_dict():
+    house_dict = {}
+    with open('/sd/lib/houses.txt') as f:
+        house_list = f.read().split('\r\n')
+        f.close()
+    for i in range(len(house_list)):
+        temp_list = list(house_list[i].split(', '))
+        house_dict[temp_list[0]] = int(temp_list[1])
+    return house_dict
+
+def add_node_to_text(msg):
+    node_from_string = msg[12:]
+    with open('/sd/lib/houses.txt', 'a') as f:
+        f.write('\r\n')
+        f.write(node_from_string)
+        f.close()
+    house_dict = create_house_dict()
+    return house_dict
+
+def send_nodes(sending_mac):
+    house_dict = create_house_dict()
+    msg = str(house_dict)
+    time.sleep(1)
+    with _chatLock :
+        for ws in _chatWebSockets :
+                ws.SendTextMessage(msg)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(2)
+
+def sending_gps(sending_mac):
+    coord = l76.coordinates()
+    msg = coord
+    time.sleep(1)
+    with _chatLock :
+        for ws in _chatWebSockets :
+                ws.SendTextMessage(msg)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(2)
+
 def current_time():
     current_time = utime.localtime()
     return str(current_time)
@@ -263,20 +304,6 @@ def send_self_info(sending_mac):
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(3)
 
-def copy(s, t):
-    try:
-        f = open(t, 'rb')
-    except:
-        f = open(t, 'wb')
-    s = open(s, "rb")
-    while True:
-        b = s.read(4096)
-        if not b:
-           break
-        f.write(b)
-    f.close()
-    s.close()
-
 def new_message_cb(rcv_ip, rcv_port, rcv_data):
     ''' callback triggered when a new packet arrived '''
     print('Incoming %d bytes from %s (port %d):' %
@@ -284,7 +311,6 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     msg = rcv_data.decode("utf-8")
     if msg[:13] == "JM batt level":
         sending_mac = msg[14:]
-        print(sending_mac)
         send_battery_voltage(sending_mac)
     elif msg[:12] == "JM send self":
         sending_mac = msg[13:]
@@ -297,6 +323,14 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     elif msg[:10] == "JM how set":
         sending_mac = msg[11:]
         how_time_set(sending_mac)
+    elif msg[:11] == "JM add node":
+        house_dict = add_node_to_text(msg)
+    elif msg[:13] == "JM send nodes":
+        sending_mac = msg[14:]
+        send_nodes(sending_mac)
+    elif msg[:11] == "JM send GPS":
+        sending_mac = msg[12:]
+        sending_gps(sending_mac)
     else:
         with _chatLock :
             for ws in _chatWebSockets :
@@ -315,65 +349,9 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     return
 
 pycom.heartbeat(False)
-try:
-    sd = SD()
-    os.mount(sd, '/sd')
-    print("SD card mounted")
-    try:
-        f = open('/sd/www/chat.txt', 'r')
-        print("Already a chat log")
-    except:
-        os.mkdir('/sd/www')
-        f = open('/sd/www/chat.txt', 'w+')
-        f.write("Chat log:\n")
-        print("chat Log created")
-    f.close()
 
-    try:
-        f = open('/sd/www/wschat.html', 'r')
-        print("Chat is on SD card")
-        c = open('/flash/www/wschat.html', 'r')
-        count_of_f = len(f.read())
-        count_of_c = len(c.read())
-        f.close()
-        c.close()
-        print("Check if wschat has changed")
-        if count_of_c != count_of_f:
-            os.remove('/sd/www/wschat.html')
-            copy('/flash/www/wschat.html', '/sd/www/wschat.html')
-            print("Copied new wshchat")
-
-    except:
-        copy('/flash/www/wschat.html', '/sd/www/wschat.html')
-        print("WSChat now on SD card")
-
-    try:
-        f = open('/sd/www/index.html', 'r')
-        c = open('/flash/www/index.html', 'r')
-        count_of_f = len(f.read())
-        count_of_c = len(c.read())
-        c.close()
-        f.close()
-        print("Did the index change?")
-        if count_of_c != count_of_f:
-            os.remove('/sd/www/index.html')
-            copy('/flash/www/index.html', '/sd/www/index.html')
-            print("copied new index")
-    except:
-        copy('/flash/www/index.html', '/sd/www/index.html')
-        print("Index now on SD card")
-
-    try:
-        f = open('/sd/www/style.css', 'r')
-        print("Style is already on SD card")
-        f.close()
-    except:
-        copy('/flash/www/style.css', '/sd/www/style.css')
-        print("Style now on SD card")
-except:
-    print("SD card not loaded, chat not saved")
-
-
+file_ops.sd_setup()
+house_dict = create_house_dict()
 
 # read config file, or set default values
 pymesh_config = PymeshConfig.read_config()
@@ -383,6 +361,7 @@ pymesh_config = PymeshConfig.read_config()
 pymesh = Pymesh(pymesh_config, new_message_cb)
 py = Pycoproc()
 rtc = RTC()
+l76 = L76GNSS(py, timeout=30)
 mac = pymesh.mac()
 # if mac > 10:
 #     pymesh.end_device(True)
