@@ -6,14 +6,18 @@ def sd_setup():
         sd = SD()
         os.mount(sd, '/sd')
         print("SD card mounted")
-        os.remove('/sd/lib/houses.txt')
+        #os.remove('/sd/www/chat.txt')
         try:
             f = open('/sd/www/chat.txt', 'r')
             print("Already a chat log")
         except:
-            os.mkdir('/sd/www')
-            f = open('/sd/www/chat.txt', 'w+')
-            f.write("Chat log:\n")
+            try:
+                os.mkdir('/sd/www')
+                f = open('/sd/www/chat.txt', 'w+')
+                f.write("Chat log:\n")
+            except:
+                f = open('/sd/www/chat.txt', 'w+')
+                f.write("Chat log:\n")
             print("chat Log created")
         f.close()
 
