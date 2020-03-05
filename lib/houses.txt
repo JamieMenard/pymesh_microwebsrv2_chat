@@ -1,0 +1,6 @@
+Jamies_House, 1
+Bobs_House, 2
+Ranges_House, 3
+Garage, 10
+Repeater1, 15
+Portable1, 25
