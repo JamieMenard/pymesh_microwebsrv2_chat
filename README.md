@@ -1,13 +1,5 @@
 # pymesh_microwebsrv2_chat
 
-Ah, further update, multicast the way I have it written is just broken. It somehow locks up all nodes. Said I was a hack.
-Rewriting things to go back to sending individual messages to a preset list of nodes. Slower, and means hard coded nodes, but was more stable.
-
-UNSTABLE IF ALL NODES ARE NOT DIRECT NEIGHBORS OF LEADER
-Not exactly sure what's happening, but sending multicast messages 
-Over more then one hop borks things.
-
-
 A hacky smash up of Pycom Pymesh from the frozen libaries and MicroWebSrv2 to create a local chat service on Lora.
 I couldn't find a current example of how this worked (and I'm a slacker python coder that needs examples) so after getting it running,
 figured it should be posted.

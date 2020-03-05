@@ -192,7 +192,7 @@ def add_node_to_text(msg):
 
 def send_nodes(sending_mac):
     house_dict = create_house_dict()
-    msg = str(house_dict)
+    msg = make_message_status(str(house_dict))
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
@@ -202,7 +202,7 @@ def send_nodes(sending_mac):
 
 def sending_gps(sending_mac):
     coord = l76.coordinates()
-    msg = coord
+    msg = make_message_status(str(coord))
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
@@ -210,9 +210,21 @@ def sending_gps(sending_mac):
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(2)
 
+def make_message_status(msg):
+    status_msg = ("STATUS: %s" % msg)
+    return status_msg
+
+def format_time(given_time):
+    print(given_time)
+    print(given_time[0])
+    format_time = ("[%d:%d %d/%d]"  % given_time[3], given_time[4], given_time[1],
+                    given_time[2])
+    return formatted_time
+
 def current_time():
     current_time = utime.localtime()
-    return str(current_time)
+    formatted_time = format_time(current_time)
+    return formatted_time
 
 def set_time(sending_mac, msg):
     if len(sending_mac) == 0:
@@ -221,7 +233,7 @@ def set_time(sending_mac, msg):
     time_from_message_string = msg[15:]
     time_from_message_tuple = tuple(map(int, time_from_message_string.split(" ")))
     rtc.init(time_from_message_tuple)
-    msg = "Time Set"
+    msg = make_message_status("Time Set")
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
@@ -234,7 +246,7 @@ def how_time_set(sending_mac):
         print("Mac address format wrong")
     else:
         now_time = current_time()
-        msg = "Current:" + now_time + " Else, year month day hours minutes seconds micros timezone"
+        msg = make_message_status(("Current:" + now_time + " Else, year month day hours minutes seconds micros timezone"))
         time.sleep(1)
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(2)
@@ -283,7 +295,7 @@ def send_battery_voltage(sending_mac):
         return
     volts = str(py.read_battery_voltage())
     own_mac = str(pymesh.mesh.mesh.MAC)
-    msg = ('Mac Address %s battery level is: %s' % (own_mac, volts))
+    msg = make_message_status(('Mac Address %s battery level is: %s' % (own_mac, volts)))
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
@@ -296,7 +308,7 @@ def send_self_info(sending_mac):
         print("Mac address format wrong")
         return
     node_info = str(pymesh.mesh.get_node_info())
-    msg = ("self info: %s" % node_info)
+    msg = make_message_status(("self info: %s" % node_info))
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
@@ -308,38 +320,46 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     ''' callback triggered when a new packet arrived '''
     print('Incoming %d bytes from %s (port %d):' %
             (len(rcv_data), rcv_ip, rcv_port))
+    now_time = current_time()
     msg = rcv_data.decode("utf-8")
-    if msg[:13] == "JM batt level":
-        sending_mac = msg[14:]
-        send_battery_voltage(sending_mac)
-    elif msg[:12] == "JM send self":
-        sending_mac = msg[13:]
-        send_self_info(sending_mac)
-    elif msg[:8] == "JM RESET":
-        machine.reset()
-    elif msg[:11] == "JM set time":
-        sending_mac = msg[12:14]
-        set_time(sending_mac, msg)
-    elif msg[:10] == "JM how set":
-        sending_mac = msg[11:]
-        how_time_set(sending_mac)
-    elif msg[:11] == "JM add node":
-        house_dict = add_node_to_text(msg)
-    elif msg[:13] == "JM send nodes":
-        sending_mac = msg[14:]
-        send_nodes(sending_mac)
-    elif msg[:11] == "JM send GPS":
-        sending_mac = msg[12:]
-        sending_gps(sending_mac)
-    else:
-        with _chatLock :
-            for ws in _chatWebSockets :
-                ws.SendTextMessage('%s' % (msg))
+    if msg[:6] == "STATUS":
+        f = open('/sd/www/status_log.txt', 'a+')
+        f.write('%s %s\n' % now_time, msg)
+        f.close()
+        print('Wrote status msg to log')
 
-    f = open('/sd/www/chat.txt', 'a+')
-    f.write('%s\n' % msg)
-    f.close()
-    print('Wrote msg to SD, chat.txt')
+    else:
+        if msg[:13] == "JM batt level":
+            sending_mac = msg[14:]
+            send_battery_voltage(sending_mac)
+        elif msg[:12] == "JM send self":
+            sending_mac = msg[13:]
+            send_self_info(sending_mac)
+        elif msg[:8] == "JM RESET":
+            machine.reset()
+        elif msg[:11] == "JM set time":
+            sending_mac = msg[12:14]
+            set_time(sending_mac, msg)
+        elif msg[:10] == "JM how set":
+            sending_mac = msg[11:]
+            how_time_set(sending_mac)
+        elif msg[:11] == "JM add node":
+            house_dict = add_node_to_text(msg)
+        elif msg[:13] == "JM send nodes":
+            sending_mac = msg[14:]
+            send_nodes(sending_mac)
+        elif msg[:11] == "JM send GPS":
+            sending_mac = msg[12:]
+            sending_gps(sending_mac)
+        else:
+            with _chatLock :
+                for ws in _chatWebSockets :
+                    ws.SendTextMessage('%s' % (msg))
+
+        f = open('/sd/www/chat.txt', 'a+')
+        f.write('%s %s\n' % now_time, msg)
+        f.close()
+        print('Wrote msg to SD, chat.txt')
 
     for _ in range(3):
         pycom.rgbled(0x888888)

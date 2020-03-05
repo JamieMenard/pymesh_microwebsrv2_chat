@@ -1,6 +1,10 @@
 Jamies_House, 1
 Bobs_House, 2
 Ranges_House, 3
+Johns_House : 4
+Dennis_House : 5
+Marks_House : 6
+Tams_House : 8
 Garage, 10
 Repeater1, 15
 Portable1, 25

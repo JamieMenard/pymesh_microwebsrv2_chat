@@ -8,6 +8,20 @@ def sd_setup():
         print("SD card mounted")
         #os.remove('/sd/www/chat.txt')
         try:
+            f = open('/sd/www/status_log.txt', 'r')
+            print("Already a status log")
+        except:
+            try:
+                os.mkdir('/sd/www')
+                f = open('/sd/www/satus_log.txt', 'w+')
+                f.write("Status log:\n")
+            except:
+                f = open('/sd/www/status_log.txt', 'w+')
+                f.write("Status log:\n")
+            print("Status Log created")
+        f.close()
+
+        try:
             f = open('/sd/www/chat.txt', 'r')
             print("Already a chat log")
         except:
