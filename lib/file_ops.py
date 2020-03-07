@@ -6,14 +6,17 @@ def sd_setup():
         sd = SD()
         os.mount(sd, '/sd')
         print("SD card mounted")
-        #os.remove('/sd/www/chat.txt')
+        # try:
+        #     os.remove('/sd/www/chat.txt')
+        # except:
+        #     print('did not delete')
         try:
             f = open('/sd/www/status_log.txt', 'r')
             print("Already a status log")
         except:
             try:
                 os.mkdir('/sd/www')
-                f = open('/sd/www/satus_log.txt', 'w+')
+                f = open('/sd/www/status_log.txt', 'w+')
                 f.write("Status log:\n")
             except:
                 f = open('/sd/www/status_log.txt', 'w+')
@@ -78,6 +81,7 @@ def sd_setup():
             print("Style now on SD card")
 
         try:
+            print("check house status")
             f = open('/sd/lib/houses.txt', 'r')
             print("House list is on SD Card")
             c = open('/flash/lib/houses.txt', 'r')
