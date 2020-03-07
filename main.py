@@ -235,11 +235,11 @@ def send_baro(sending_mac):
             print("Mac address format wrong")
             return
         now_time = current_time()
-        msg1 = (now_time + " MPL3115A2 temperature: " + str(mp.temperature())+
-                " Altitude: " + str(mp.altitude()))
+        msg1 = make_message_status((now_time + " MPL3115A2 temperature: " + str(mp.temperature())+
+                " Altitude: " + str(mp.altitude())))
         pymesh.send_mess(sending_mac, str(msg1))
         time.sleep(2)
-        msg2 = (now_time + " Pressure: " + str(mpp.pressure()))
+        msg2 = make_message_status((now_time + " Pressure: " + str(mpp.pressure())))
         pymesh.send_mess(sending_mac, str(msg2))
     elif pysense_s == False:
         no_baro = "This node doesn't have Baro"
@@ -256,16 +256,16 @@ def send_temp(sending_mac):
             print("Mac address format wrong")
             return
         now_time = current_time()
-        msg1 = (now_time + " Temperature: " + str(si.temperature())+
-                " deg C and Relative Humidity: " + str(si.humidity()) + " %RH")
+        msg1 = make_message_status((now_time + " Temperature: " + str(si.temperature())+
+                " deg C and Relative Humidity: " + str(si.humidity()) + " %RH"))
         pymesh.send_mess(sending_mac, str(msg1))
         time.sleep(2)
-        msg2 = (now_time + " Dew point: "+ str(si.dew_point()) + " deg C")
+        msg2 = make_message_status((now_time + " Dew point: "+ str(si.dew_point()) + " deg C"))
         pymesh.send_mess(sending_mac, str(msg2))
         time.sleep(2)
         t_ambient = 24.4
-        msg3 = (now_time + " Humidity Ambient for " + str(t_ambient) + " deg C is "
-                + str(si.humid_ambient(t_ambient)) + "%RH")
+        msg3 = make_message_status((now_time + " Humidity Ambient for " + str(t_ambient) + " deg C is "
+                + str(si.humid_ambient(t_ambient)) + "%RH"))
         pymesh.send_mess(sending_mac, str(msg3))
         time.sleep(2)
     elif pysense_s == False:
