@@ -1,5 +1,9 @@
 from L76GNSS import L76GNSS
 from machine import RTC
+from LIS2HH12 import LIS2HH12
+from SI7006A20 import SI7006A20
+from LTR329ALS01 import LTR329ALS01
+from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 from MicroWebSrv2  import *
 from network import WLAN
 from pycoproc import Pycoproc
@@ -95,6 +99,7 @@ _chatLock = allocate_lock()
 def WSJoinChat(webSocket) :
     webSocket.OnTextMessage = OnWSChatTextMsg
     webSocket.OnClosed      = OnWSChatClosed
+    first_time_set()
     addr = webSocket.Request.UserAddress
     my_mac = pymesh.mesh.mesh.MAC
     macs = get_macs_for_mess()
@@ -129,6 +134,7 @@ def OnWSChatTextMsg(webSocket, msg) :
     my_mac = pymesh.mesh.mesh.MAC
     house = mac_to_house(my_mac)
     new_msg = ('%s: %s' % (str(house), msg))
+    now_time = current_time()
     with _chatLock :
         for ws in _chatWebSockets :
             #ws.SendTextMessage(': %s' % new_msg)
@@ -140,7 +146,10 @@ def OnWSChatTextMsg(webSocket, msg) :
             else:
                 pymesh.send_mess(mac, str(new_msg))
                 time.sleep(1)
-
+    f = open('/sd/www/chat.txt', 'a+')
+    f.write('%s %s\n' % (now_time, msg))
+    f.close()
+    print('Wrote msg to SD, chat.txt')
 # ------------------------------------------------------------------------
 
 def OnWSChatClosed(webSocket) :
@@ -149,6 +158,7 @@ def OnWSChatClosed(webSocket) :
     my_mac = pymesh.mesh.mesh.MAC
     house = mac_to_house(my_mac)
     msg1 = ('<%s HAS LEFT THE CHAT>' % house)
+    pycom.rgbled(0x00FF00)
     with _chatLock :
         if webSocket in _chatWebSockets :
             _chatWebSockets.remove(webSocket)
@@ -192,7 +202,7 @@ def add_node_to_text(msg):
 
 def send_nodes(sending_mac):
     house_dict = create_house_dict()
-    msg = str(house_dict)
+    msg = make_message_status(str(house_dict))
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
@@ -201,40 +211,134 @@ def send_nodes(sending_mac):
         time.sleep(2)
 
 def sending_gps(sending_mac):
-    coord = l76.coordinates()
-    msg = coord
-    time.sleep(1)
-    with _chatLock :
-        for ws in _chatWebSockets :
-                ws.SendTextMessage(msg)
-        pymesh.send_mess(sending_mac, str(msg))
+    if pytrack_s == True:
+        coord = l76.coordinates()
+        msg = make_message_status(str(coord))
+        time.sleep(1)
+        with _chatLock :
+            for ws in _chatWebSockets :
+                    ws.SendTextMessage(msg)
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(2)
+    elif pytrack_s == False:
+        no_gps = "This node doesn't have GPS"
+        msg = make_message_status(no_gps)
+        with _chatLock :
+            for ws in _chatWebSockets :
+                    ws.SendTextMessage(msg)
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(2)
+
+def send_baro(sending_mac):
+    if pysense_s == True:
+        if len(sending_mac) == 0:
+            print("Mac address format wrong")
+            return
+        now_time = current_time()
+        msg1 = (now_time + " MPL3115A2 temperature: " + str(mp.temperature())+
+                " Altitude: " + str(mp.altitude()))
+        pymesh.send_mess(sending_mac, str(msg1))
         time.sleep(2)
+        msg2 = (now_time + " Pressure: " + str(mpp.pressure()))
+        pymesh.send_mess(sending_mac, str(msg2))
+    elif pysense_s == False:
+        no_baro = "This node doesn't have Baro"
+        msg = make_message_status(no_temp)
+        with _chatLock :
+            for ws in _chatWebSockets :
+                    ws.SendTextMessage(msg)
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(2)
+
+def send_temp(sending_mac):
+    if pysense_s == True:
+        if len(sending_mac) == 0:
+            print("Mac address format wrong")
+            return
+        now_time = current_time()
+        msg1 = (now_time + " Temperature: " + str(si.temperature())+
+                " deg C and Relative Humidity: " + str(si.humidity()) + " %RH")
+        pymesh.send_mess(sending_mac, str(msg1))
+        time.sleep(2)
+        msg2 = (now_time + " Dew point: "+ str(si.dew_point()) + " deg C")
+        pymesh.send_mess(sending_mac, str(msg2))
+        time.sleep(2)
+        t_ambient = 24.4
+        msg3 = (now_time + " Humidity Ambient for " + str(t_ambient) + " deg C is "
+                + str(si.humid_ambient(t_ambient)) + "%RH")
+        pymesh.send_mess(sending_mac, str(msg3))
+        time.sleep(2)
+    elif pysense_s == False:
+        no_temp = "This node doesn't have Temp"
+        msg = make_message_status(no_temp)
+        with _chatLock :
+            for ws in _chatWebSockets :
+                    ws.SendTextMessage(msg)
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(2)
+
+
+def make_message_status(msg):
+    status_msg = ("STATUS: %s" % msg)
+    return status_msg
+
+def format_time(given_time):
+    format_time = ("[%d:%d %d/%d]"  % (given_time[3], given_time[4], given_time[1], given_time[2]))
+    return format_time
 
 def current_time():
     current_time = utime.localtime()
-    return str(current_time)
+    formatted_time = format_time(current_time)
+    return formatted_time
 
 def set_time(sending_mac, msg):
     if len(sending_mac) == 0:
         print("Mac address format wrong")
         return
-    time_from_message_string = msg[15:]
-    time_from_message_tuple = tuple(map(int, time_from_message_string.split(" ")))
+    time_from_message_string = msg[16:-1]
+    print(time_from_message_string)
+    time_from_message_tuple = tuple(map(int, time_from_message_string.split(", ")))
     rtc.init(time_from_message_tuple)
-    msg = "Time Set"
+    msg = make_message_status("Time Set")
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
                 ws.SendTextMessage(msg)
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(2)
+
+def first_time_set():
+    current_time = utime.localtime()
+    print(mac)
+    if current_time[0] == 1970:
+        print("Time's wrong, send request to fix")
+        wake = "wake up 1!"
+        pymesh.send_mess(1, str(wake))
+        time.sleep(3)
+        msg = ("JM set my time %s" % str(mac))
+        pymesh.send_mess(1, str(msg))
+        time.sleep(2)
+    else:
+        print("Time is correct")
+
+def set_my_time(sending_mac):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+    else:
+        now_time = utime.localtime()
+        print(str(now_time))
+        msg = ("JM set time 01 %s" % str(now_time))
+        time.sleep(1)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(2)
+
 
 def how_time_set(sending_mac):
     if len(sending_mac) == 0:
         print("Mac address format wrong")
     else:
         now_time = current_time()
-        msg = "Current:" + now_time + " Else, year month day hours minutes seconds micros timezone"
+        msg = make_message_status(("Current:" + now_time + " Else, (year, month, day, hours, minutes, seconds, micros, timezone)"))
         time.sleep(1)
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(2)
@@ -283,7 +387,7 @@ def send_battery_voltage(sending_mac):
         return
     volts = str(py.read_battery_voltage())
     own_mac = str(pymesh.mesh.mesh.MAC)
-    msg = ('Mac Address %s battery level is: %s' % (own_mac, volts))
+    msg = make_message_status(('Mac Address %s battery level is: %s' % (own_mac, volts)))
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
@@ -296,7 +400,7 @@ def send_self_info(sending_mac):
         print("Mac address format wrong")
         return
     node_info = str(pymesh.mesh.get_node_info())
-    msg = ("self info: %s" % node_info)
+    msg = make_message_status(("self info: %s" % node_info))
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
@@ -308,40 +412,59 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     ''' callback triggered when a new packet arrived '''
     print('Incoming %d bytes from %s (port %d):' %
             (len(rcv_data), rcv_ip, rcv_port))
+    now_time = current_time()
     msg = rcv_data.decode("utf-8")
-    if msg[:13] == "JM batt level":
-        sending_mac = msg[14:]
-        send_battery_voltage(sending_mac)
-    elif msg[:12] == "JM send self":
-        sending_mac = msg[13:]
-        send_self_info(sending_mac)
-    elif msg[:8] == "JM RESET":
-        machine.reset()
-    elif msg[:11] == "JM set time":
-        sending_mac = msg[12:14]
-        set_time(sending_mac, msg)
-    elif msg[:10] == "JM how set":
-        sending_mac = msg[11:]
-        how_time_set(sending_mac)
-    elif msg[:11] == "JM add node":
-        house_dict = add_node_to_text(msg)
-    elif msg[:13] == "JM send nodes":
-        sending_mac = msg[14:]
-        send_nodes(sending_mac)
-    elif msg[:11] == "JM send GPS":
-        sending_mac = msg[12:]
-        sending_gps(sending_mac)
+    if msg[:6] == "STATUS":
+        f = open('/sd/www/status_log.txt', 'a+')
+        f.write('%s %s\n' % (now_time, msg))
+        f.close()
+        print('Wrote status msg to log')
+
+    elif msg[:2] == "JM":
+        if msg[:13] == "JM batt level":
+            sending_mac = msg[14:]
+            send_battery_voltage(sending_mac)
+        elif msg[:12] == "JM send self":
+            sending_mac = msg[13:]
+            send_self_info(sending_mac)
+        elif msg[:8] == "JM RESET":
+            machine.reset()
+        elif msg[:11] == "JM set time":
+            sending_mac = msg[12:14]
+            set_time(sending_mac, msg)
+        elif msg[:10] == "JM how set":
+            sending_mac = msg[11:]
+            how_time_set(sending_mac)
+        elif msg[:11] == "JM add node":
+            house_dict = add_node_to_text(msg)
+        elif msg[:13] == "JM send nodes":
+            sending_mac = msg[14:]
+            send_nodes(sending_mac)
+        elif msg[:11] == "JM send GPS":
+            sending_mac = msg[12:]
+            sending_gps(sending_mac)
+        elif msg[:12] == "JM send baro":
+            sending_mac = msg[13:]
+            send_baro(sending_mac)
+        elif msg[:12] == "JM send temp":
+            sending_mac = msg[13:]
+            send_temp(sending_mac)
+        elif msg[:14] == "JM set my time":
+            sending_mac = msg[15:]
+            set_my_time(sending_mac)
+
     else:
         with _chatLock :
             for ws in _chatWebSockets :
                 ws.SendTextMessage('%s' % (msg))
 
-    f = open('/sd/www/chat.txt', 'a+')
-    f.write('%s\n' % msg)
-    f.close()
-    print('Wrote msg to SD, chat.txt')
+        f = open('/sd/www/chat.txt', 'a+')
+        f.write('%s %s\n' % (now_time, msg))
+        f.close()
+        print('Wrote msg to SD, chat.txt')
 
-    for _ in range(3):
+    #while True:
+    for _ in range(5):
         pycom.rgbled(0x888888)
         time.sleep(.2)
         pycom.rgbled(0)
@@ -361,7 +484,24 @@ pymesh_config = PymeshConfig.read_config()
 pymesh = Pymesh(pymesh_config, new_message_cb)
 py = Pycoproc()
 rtc = RTC()
-l76 = L76GNSS(py, timeout=30)
+try:
+    l76 = L76GNSS(py, timeout=30)
+    pytrack_s = True
+    print("Pytrack")
+except:
+    pytrack_s = False
+    print("Not a Pytrack")
+
+try:
+    si = SI7006A20(py)
+    mp = MPL3115A2(py,mode=ALTITUDE) # Returns height in meters. Mode may also be set to PRESSURE, returning a value in Pascals
+    mpp = MPL3115A2(py,mode=PRESSURE) # Returns pressure in Pa. Mode may also be set to ALTITUDE, returning a value in meters
+    pysense_s = True
+    print("Pysense")
+except:
+    pysense_s = False
+    print("Not a Pysense")
+
 mac = pymesh.mac()
 # if mac > 10:
 #     pymesh.end_device(True)
@@ -376,11 +516,11 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Bobshouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.EXT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="Dennishouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
-
+first_time_set()
 
 # Loads the PyhtmlTemplate module globally and configure it,
 pyhtmlMod = MicroWebSrv2.LoadModule('PyhtmlTemplate')

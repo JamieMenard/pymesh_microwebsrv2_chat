@@ -4,3 +4,7 @@ Ranges_House, 3
 Garage, 10
 Repeater1, 15
 Portable1, 25
+Johns_House, 4
+Dennis_House, 5
+Marks_House, 6
+Tams_House, 8
