@@ -48,7 +48,7 @@ def current_time():
     current_time = utime.localtime()
     formatted_time = format_time(current_time)
     return formatted_time
-    
+
 def format_time(given_time):
     format_time = ("[%d:%d %d/%d]"  % (given_time[3], given_time[4], given_time[1], given_time[2]))
     return format_time
@@ -526,10 +526,13 @@ class MeshInternal:
                 print("PACK_MESSAGE_ACK received")
                 # mark message as received
                 now_time = current_time()
-                f = open('/sd/www/ack_log.txt', 'a+')
-                f.write('%s %s\n' % (now_time, rcv_data))
-                f.close()
-                print('Wrote msg to SD, ack_log.txt')
+                try:
+                    f = open('/sd/www/ack_log.txt', 'a+')
+                    f.write('%s %s\n' % (now_time, rcv_data))
+                    f.close()
+                    print('Wrote msg to SD, ack_log.txt')
+                except:
+                    print("No SD card")
                 self.messages.rcv_ack(rcv_data)
 
             elif type == self.PACK_ROUTER_ASK_MACS:

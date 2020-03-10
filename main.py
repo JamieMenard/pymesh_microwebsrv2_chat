@@ -51,6 +51,7 @@ from pymesh import Pymesh
 #               "LTE1" : 50,
 #               }
 
+lh_mesh_version = "1.0.0"
 
 # ============================================================================
 
@@ -271,6 +272,17 @@ def send_temp(sending_mac):
             pymesh.send_mess(sending_mac, str(msg))
             time.sleep(2)
 
+def send_mesh_version(sending_mac):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+        return
+    msg = make_message_status(("Node SW version: %s" % lh_mesh_version))
+    time.sleep(1)
+    with _chatLock :
+        for ws in _chatWebSockets :
+                ws.SendTextMessage(msg)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(3)
 
 def make_message_status(msg):
     status_msg = ("STATUS: %s" % msg)
@@ -446,6 +458,9 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
             set_my_time(sending_mac)
         elif msg[:16] == "JM set your time":
             first_time_set()
+        elif msg[:11] == "JM send swv":
+            sending_mac = msg[12:]
+            send_mesh_version(sending_mac)
     else:
         with _chatLock :
             for ws in _chatWebSockets :
