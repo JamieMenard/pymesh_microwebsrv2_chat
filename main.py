@@ -5,7 +5,7 @@ from SI7006A20 import SI7006A20
 from LTR329ALS01 import LTR329ALS01
 from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 from MicroWebSrv2  import *
-from network import WLAN, LTE
+from network import WLAN
 from pycoproc import Pycoproc
 from time          import sleep
 from _thread       import allocate_lock
@@ -24,6 +24,10 @@ import uos
 from pymesh_config import PymeshConfig
 # except:
 #     from _pymesh_config import PymeshConfig
+try:
+    from network import LTE
+except:
+    print("Not a FIPY")
 
 # try:
 from pymesh import Pymesh
@@ -508,7 +512,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="LTE1", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="DennisHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
