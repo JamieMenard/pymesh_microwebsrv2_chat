@@ -51,7 +51,7 @@ from pymesh import Pymesh
 #               "LTE1" : 50,
 #               }
 
-lh_mesh_version = "1.0.0"
+lh_mesh_version = "1.0.1"
 
 # ============================================================================
 
@@ -375,10 +375,23 @@ def mac_to_house_list_string(macs):
 
 # Not fully useable while "mml" command only gets nodes connected to leader
 def pop_mac_list():
+    have_mac_list = False
     macs = pymesh.mesh.get_mesh_mac_list()
-    while len(macs[0]) == 0:
+    for i in range(20):
         time.sleep(4)
         macs = pymesh.mesh.get_mesh_mac_list()
+        if len(macs[0]) != 0:
+            have_mac_list = True
+            break
+    # while len(macs[0]) == 0:
+    #     time.sleep(4)
+    #     macs = pymesh.mesh.get_mesh_mac_list()
+    if have_mac_list == False:
+        msg = "This node is not connected to a mesh, power cycle and/or move node"
+        print(msg)
+        with _chatLock :
+            for ws in _chatWebSockets :
+                    ws.SendTextMessage(msg)
     mac_list = []
     for mac in macs[0]:
         mac_list.append(mac)
@@ -527,7 +540,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="DennisHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="JMGarage", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
