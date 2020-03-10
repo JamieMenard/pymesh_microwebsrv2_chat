@@ -297,7 +297,6 @@ def set_time(sending_mac, msg):
 
 def first_time_set():
     current_time = utime.localtime()
-    print(mac)
     if current_time[0] == 1970:
         print("Time's wrong, send request to fix")
         wake = "wake up 1!"
@@ -319,7 +318,6 @@ def set_my_time(sending_mac):
         time.sleep(1)
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(2)
-
 
 def how_time_set(sending_mac):
     if len(sending_mac) == 0:
@@ -440,7 +438,8 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         elif msg[:14] == "JM set my time":
             sending_mac = msg[15:]
             set_my_time(sending_mac)
-
+        elif msg[:16] == "JM set your time":
+            first_time_set()
     else:
         with _chatLock :
             for ws in _chatWebSockets :
@@ -504,7 +503,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Jamieshouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.EXT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="Portable1", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
