@@ -392,10 +392,13 @@ def pop_mac_list():
         with _chatLock :
             for ws in _chatWebSockets :
                     ws.SendTextMessage(msg)
-    mac_list = []
-    for mac in macs[0]:
-        mac_list.append(mac)
-    house_online_string = mac_to_house_list_string(mac_list)
+    else:
+        print("making mac list")
+        mac_list = []
+        for mac in macs[0]:
+            mac_list.append(mac)
+        house_online_string = mac_to_house_list_string(mac_list)
+
     return house_online_string
 
 def send_battery_voltage(sending_mac):
@@ -540,7 +543,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="JMGarage", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="Portable1", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
