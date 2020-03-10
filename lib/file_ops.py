@@ -11,6 +11,20 @@ def sd_setup():
         # except:
         #     print('did not delete')
         try:
+            f = open('/sd/www/ack_log.txt', 'r')
+            print("Already a ACK log")
+        except:
+            try:
+                os.mkdir('/sd/www')
+                f = open('/sd/www/ack_log.txt', 'w+')
+                f.write("ACK log:\n")
+            except:
+                f = open('/sd/www/ACK_log.txt', 'w+')
+                f.write("ACK log:\n")
+            print("ACK Log created")
+        f.close()
+
+        try:
             f = open('/sd/www/status_log.txt', 'r')
             print("Already a status log")
         except:

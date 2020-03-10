@@ -44,6 +44,14 @@ __version__ = '3'
 * initial version, in ble project
 """
 
+def current_time():
+    current_time = utime.localtime()
+    formatted_time = format_time(current_time)
+    return formatted_time
+    
+def format_time(given_time):
+    format_time = ("[%d:%d %d/%d]"  % (given_time[3], given_time[4], given_time[1], given_time[2]))
+    return format_time
 
 class MeshInternal:
     """ Class for internal protocol inside Mesh network """
@@ -367,7 +375,7 @@ class MeshInternal:
 
         print("Send pack: 0x%X to IP %s" % (pack_type, ip))
         print(data)
-        
+
         # check not to send same (packet, destination) too often
         # if not self._check_to_send(pack_type, ip):
         #     print("NO send")
@@ -517,6 +525,11 @@ class MeshInternal:
             elif type == self.PACK_MESSAGE_ACK:
                 print("PACK_MESSAGE_ACK received")
                 # mark message as received
+                now_time = current_time()
+                f = open('/sd/www/ack_log.txt', 'a+')
+                f.write('%s %s\n' % (now_time, rcv_data))
+                f.close()
+                print('Wrote msg to SD, ack_log.txt')
                 self.messages.rcv_ack(rcv_data)
 
             elif type == self.PACK_ROUTER_ASK_MACS:

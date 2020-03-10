@@ -5,7 +5,7 @@ from SI7006A20 import SI7006A20
 from LTR329ALS01 import LTR329ALS01
 from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 from MicroWebSrv2  import *
-from network import WLAN
+from network import WLAN, LTE
 from pycoproc import Pycoproc
 from time          import sleep
 from _thread       import allocate_lock
@@ -14,6 +14,7 @@ import machine
 import file_ops
 import os
 import pycom
+import ssl
 import socket
 import time
 import utime
@@ -42,7 +43,8 @@ from pymesh import Pymesh
 #               "Repeater1" : 15,
 #               "MountainRepeater" : 20,
 #               "Portable1" : 25,
-#               "Portable2" : 26
+#               "Portable2" : 26,
+#               "LTE1" : 50,
 #               }
 
 
@@ -461,7 +463,10 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
 pycom.heartbeat(False)
 
 file_ops.sd_setup()
-house_dict = create_house_dict()
+try:
+    house_dict = create_house_dict()
+except:
+    print("There's no SD card, WebAP won't work")
 
 # read config file, or set default values
 pymesh_config = PymeshConfig.read_config()
@@ -503,11 +508,36 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Portable1", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="LTE1", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
 first_time_set()
+
+# try:
+#     lte = LTE()         # instantiate the LTE object
+#     print("Made LTE object")
+#     lte.attach()        # attach the cellular modem to a base station
+#     print("attached to network")
+#     while not lte.isattached():
+#         print("Not attaching")
+#         time.sleep(0.25)
+#     lte.connect()       # start a data session and obtain an IP address
+#     print("is attached and getting data")
+#     while not lte.isconnected():
+#         time.sleep(0.25)
+#
+#     s = socket.socket()
+#     s = ssl.wrap_socket(s)
+#     s.connect(socket.getaddrinfo('www.google.com', 443)[0][-1])
+#     s.send(b"GET / HTTP/1.0\r\n\r\n")
+#     print(s.recv(4096))
+#     s.close()
+#
+#     lte.disconnect()
+#     lte.dettach()
+# except:
+#     print("Node is not a FIPY")
 
 # Loads the PyhtmlTemplate module globally and configure it,
 pyhtmlMod = MicroWebSrv2.LoadModule('PyhtmlTemplate')
