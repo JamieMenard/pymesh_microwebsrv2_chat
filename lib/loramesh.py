@@ -180,8 +180,11 @@ class Loramesh:
         """ Sets the LED according to the Thread role """
         if self.state == STATE_LEADER and self.mesh.single():
             pycom.rgbled(self.RGBLED[self.STATE_LEADER_SINGLE])
-        else:
+        elif self.state == STATE_DETACHED:
             pycom.rgbled(self.RGBLED[self.state])
+        else:
+            do_nothing = "yes"
+            # pycom.rgbled(self.RGBLED[self.state])
 
     def ip(self):
         """ Returns the IPv6 RLOC """

@@ -165,7 +165,7 @@ def OnWSChatClosed(webSocket) :
     my_mac = pymesh.mesh.mesh.MAC
     house = mac_to_house(my_mac)
     msg1 = ('<%s HAS LEFT THE CHAT>' % house)
-    pycom.rgbled(0x00FF00)
+    pycom.rgbled(0x000A00)
     with _chatLock :
         if webSocket in _chatWebSockets :
             _chatWebSockets.remove(webSocket)
@@ -486,13 +486,13 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         f.write('%s %s\n' % (now_time, msg))
         f.close()
         print('Wrote msg to SD, chat.txt')
+        for _ in range(5):
+            pycom.rgbled(0x888888)
+            time.sleep(.2)
+            pycom.rgbled(0)
+            time.sleep(.1)
+        pycom.rgbled(0x000066)
 
-    #while True:
-    for _ in range(5):
-        pycom.rgbled(0x888888)
-        time.sleep(.2)
-        pycom.rgbled(0)
-        time.sleep(.1)
     return
 
 pycom.heartbeat(False)
@@ -543,12 +543,12 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Portable1", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="DennisHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
 first_time_set()
-
+pycom.rgbled(0x000A00)
 # try:
 #     lte = LTE()         # instantiate the LTE object
 #     print("Made LTE object")

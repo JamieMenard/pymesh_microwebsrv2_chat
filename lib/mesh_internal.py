@@ -53,9 +53,11 @@ def format_time(given_time):
     format_time = ("[%d:%d %d/%d]"  % (given_time[3], given_time[4], given_time[1], given_time[2]))
     return format_time
 
+
+
 class MeshInternal:
     """ Class for internal protocol inside Mesh network """
-
+    # MSG_ARRIVE_YET = False
 ################################################################################
     # Border router constants
 
@@ -260,6 +262,12 @@ class MeshInternal:
     def process(self):
         self.mesh.update_internals()
         self.mesh.led_state()
+        # print("MSG ARRIVE YET? %s" % str(MSG_ARRIVE_YET)
+        # if MSG_ARRIVE_YET == False:
+        #     print("Set LED to State")
+        #     self.mesh.led_state()
+        # else:
+        #     print("Not changing LED")
         print_debug(3, "%d: MAC %s(%d), State %s, Single %s" % (time.time(),
             hex(self.MAC), self.MAC, self.mesh.state_string(), str(self.mesh.mesh.single())))
         print_debug(3, self.mesh.ipaddr())
@@ -457,7 +465,8 @@ class MeshInternal:
             print('Incoming %d bytes from %s (port %d):' %
                   (len(rcv_data), rcv_ip, rcv_port))
             # print(rcv_data)
-
+            # setting a variable to True for determining if a message has arrived yet
+            # MSG_ARRIVE_YET = True
             # check if Node is BR
             if self.br_handler:
                 #check if data is for the external of the Pymesh (for Pybytes)
@@ -479,7 +488,7 @@ class MeshInternal:
                     print(rcv_data)
 
                     self.br_handler(rcv_ip, rcv_port, rcv_data, dest_ip, dest_port)
-                    return # done, no more parsing as this pack was for BR
+                    return  # done, no more parsing as this pack was for BR
 
             # check packet type
             (type, rcv_data) = self.get_type(rcv_data)
