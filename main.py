@@ -51,7 +51,7 @@ from pymesh import Pymesh
 #               "LTE1" : 50,
 #               }
 
-lh_mesh_version = "1.0.2"
+lh_mesh_version = "1.0.3"
 
 # ============================================================================
 
@@ -247,7 +247,7 @@ def send_baro(sending_mac):
         time.sleep(2)
     elif pysense_s == False:
         no_baro = "This node doesn't have Baro"
-        msg = make_message_status(no_temp)
+        msg = make_message_status(no_baro)
         with _chatLock :
             for ws in _chatWebSockets :
                     ws.SendTextMessage(msg)
@@ -318,6 +318,7 @@ def first_time_set():
     if current_time[0] == 1970:
         print("Time's wrong, send request to fix")
         wake = "wake up 1!"
+        time.sleep(1)
         pymesh.send_mess(1, str(wake))
         time.sleep(3)
         msg = ("JM set my time %s" % str(mac))
@@ -405,15 +406,24 @@ def send_battery_voltage(sending_mac):
     if len(sending_mac) == 0:
         print("Mac address format wrong")
         return
-    volts = str(py.read_battery_voltage())
-    own_mac = str(pymesh.mesh.mesh.MAC)
-    msg = make_message_status(('Mac Address %s battery level is: %s' % (own_mac, volts)))
-    time.sleep(1)
-    with _chatLock :
-        for ws in _chatWebSockets :
-                ws.SendTextMessage(msg)
-        pymesh.send_mess(sending_mac, str(msg))
-        time.sleep(1.5)
+    try:
+        volts = str(py.read_battery_voltage())
+        own_mac = str(pymesh.mesh.mesh.MAC)
+        msg = make_message_status(('Mac Address %s battery level is: %s' % (own_mac, volts)))
+        time.sleep(1)
+        with _chatLock :
+            for ws in _chatWebSockets :
+                    ws.SendTextMessage(msg)
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(1.5)
+    except:
+        if exp31 == True:
+            msg = make_message_status("EXP3.1, No ADC")
+            with _chatLock :
+                for ws in _chatWebSockets :
+                        ws.SendTextMessage(msg)
+                pymesh.send_mess(sending_mac, str(msg))
+                time.sleep(1.5)
 
 def send_self_info(sending_mac):
     if len(sending_mac) == 0:
@@ -509,7 +519,11 @@ pymesh_config = PymeshConfig.read_config()
 
 #initialize Pymesh
 pymesh = Pymesh(pymesh_config, new_message_cb)
-py = Pycoproc()
+try:
+    py = Pycoproc()
+except:
+    print("Exp3.1")
+    exp31 = True
 rtc = RTC()
 try:
     l76 = L76GNSS(py, timeout=30)
@@ -517,7 +531,6 @@ try:
     print("Pytrack")
 except:
     pytrack_s = False
-    print("Not a Pytrack")
 
 try:
     si = SI7006A20(py)
@@ -527,7 +540,9 @@ try:
     print("Pysense")
 except:
     pysense_s = False
-    print("Not a Pysense")
+
+if pysense_s == False and pytrack_s == False:
+    print("EXP 3.1")
 
 mac = pymesh.mac()
 # if mac > 10:

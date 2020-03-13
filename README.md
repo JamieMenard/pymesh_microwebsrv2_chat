@@ -10,6 +10,22 @@ See https://docs.pycom.io/pymesh/licence/ for requesting pymesh firmware.
 
 Credit to Pycom and MicroWebSrv2 https://github.com/jczic/MicroWebSrv2 for a solid 95% of this.
 
+The current, "cheap and easy" nodes;
+Pycase https://www.mouser.com/ProductDetail/pycom/pycase-clear/?qs=EU6FO9ffTwf78qghGKh6Fw%3D%3D&countrycode=US&currencycode=USD
+
+Pycom Expansion 3.1 https://www.mouser.com/ProductDetail/pycom/expansion-board-v3/?qs=MLItCLRbWswyAU64Xj3CwQ%3D%3D&countrycode=US&currencycode=USD
+
+Lopy4 https://www.mouser.com/ProductDetail/pycom/lopy-40/?qs=MLItCLRbWsz2Ys%252bwjFa7JA%3D%3D&countrycode=US&currencycode=USD
+
+Pulse antenna https://www.mouser.com/ProductDetail/pulse/w1063m/?qs=opBjA1TV90175GTfjmKkCg%3D%3D&countrycode=US&currencycode=USD
+
+Pulse u.FL to sma https://www.mouser.com/ProductDetail/pulse/w9003m/?qs=y8XzRXFG4KMYcHbckcxMew%3D%3D&countrycode=US&currencycode=USD
+
+Amazon Battery Bank 10,000ma with pass through charging
+https://www.amazon.com/gp/product/B06XRVHDLM/ref=ppx_od_dt_b_asin_title_s00?ie=UTF8&psc=1
+
+The more complicated IP67 Node
+______________________________________________________
 Parts list per node:
 
 Pycom Lopy4
