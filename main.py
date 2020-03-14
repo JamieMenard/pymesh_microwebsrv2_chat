@@ -113,16 +113,16 @@ def WSJoinChat(webSocket) :
     houses_string = pop_mac_list()
     house = mac_to_house(my_mac)
     msg1 = ('<%s HAS JOINED THE CHAT>' % house)
-    msg2 = ("List of current %s" % houses_string)
-    msg_update = last_5_messages()
+    # msg2 = ("List of current %s" % houses_string)
+    msg_update = last_10_messages()
     with _chatLock :
         for ws in _chatWebSockets :
             ws.SendTextMessage('<%s HAS JOINED THE CHAT>' % house)
-            ws.SendTextMessage("List of current %s" % houses_string)
+            # ws.SendTextMessage("List of current %s" % houses_string)
         _chatWebSockets.append(webSocket)
         house = mac_to_house(my_mac)
         webSocket.SendTextMessage('<WELCOME %s>' % house)
-        webSocket.SendTextMessage("List of current %s" % houses_string)
+        # webSocket.SendTextMessage("List of current %s" % houses_string)
         for i in range(len(msg_update)-1):
             webSocket.SendTextMessage('Previous MSG: %s' % msg_update[i])
         # pymesh.send_mess('ff03::1', msg1)
@@ -133,8 +133,8 @@ def WSJoinChat(webSocket) :
             else:
                 pymesh.send_mess(mac, msg1)
                 time.sleep(1.5)
-                pymesh.send_mess(mac, msg2)
-                time.sleep(1.5)
+                # pymesh.send_mess(mac, msg2)
+                # time.sleep(1.5)
 
 # ------------------------------------------------------------------------
 
@@ -191,11 +191,11 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 
 print()
 
-def last_5_messages():
+def last_10_messages():
     with open('/sd/www/chat.txt', 'r') as f:
         all_messages = f.read().split('\n')
         f.close()
-    last_messages = all_messages[-6:]
+    last_messages = all_messages[-11:]
     return last_messages
 
 def create_house_dict():
