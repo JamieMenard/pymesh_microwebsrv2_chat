@@ -51,7 +51,7 @@ from pymesh import Pymesh
 #               "LTE1" : 50,
 #               }
 
-lh_mesh_version = "1.0.3"
+lh_mesh_version = "1.0.4"
 
 # ============================================================================
 
@@ -114,6 +114,7 @@ def WSJoinChat(webSocket) :
     house = mac_to_house(my_mac)
     msg1 = ('<%s HAS JOINED THE CHAT>' % house)
     msg2 = ("List of current %s" % houses_string)
+    msg_update = last_5_messages()
     with _chatLock :
         for ws in _chatWebSockets :
             ws.SendTextMessage('<%s HAS JOINED THE CHAT>' % house)
@@ -122,6 +123,8 @@ def WSJoinChat(webSocket) :
         house = mac_to_house(my_mac)
         webSocket.SendTextMessage('<WELCOME %s>' % house)
         webSocket.SendTextMessage("List of current %s" % houses_string)
+        for i in range(len(msg_update)-1):
+            webSocket.SendTextMessage('Previous MSG: %s' % msg_update[i])
         # pymesh.send_mess('ff03::1', msg1)
         # pymesh.send_mess('ff03::1', msg2)
         for mac in macs:
@@ -187,6 +190,13 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 # ============================================================================
 
 print()
+
+def last_5_messages():
+    with open('/sd/www/chat.txt', 'r') as f:
+        all_messages = f.read().split('\n')
+        f.close()
+    last_messages = all_messages[-6:]
+    return last_messages
 
 def create_house_dict():
     house_dict = {}
@@ -418,7 +428,7 @@ def send_battery_voltage(sending_mac):
             time.sleep(1.5)
     except:
         if exp31 == True:
-            msg = make_message_status("EXP3.1, No ADC")
+            msg = make_message_status("No ADC")
             with _chatLock :
                 for ws in _chatWebSockets :
                         ws.SendTextMessage(msg)
@@ -522,7 +532,6 @@ pymesh = Pymesh(pymesh_config, new_message_cb)
 try:
     py = Pycoproc()
 except:
-    print("Exp3.1")
     exp31 = True
 rtc = RTC()
 try:
@@ -558,7 +567,7 @@ while not pymesh.is_connected():
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="DennisHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="JohnsHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");

@@ -10,3 +10,4 @@ Marks_House, 6
 Tams_House, 8
 LTE1, 50
 Repeater2, 16
+Susans_House, 7
