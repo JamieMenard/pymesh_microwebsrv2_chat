@@ -72,22 +72,6 @@
             return document.getElementById(id);
         }
 
-        function writeLineToMesh(line)
-        {
-            var elm = getElmById('meshmac');
-            if (elm)
-            {
-                var lineElm = document.createElement('div');
-                if (line) {
-                    lineElm.innerText = "Mesh Mac " + line;
-                }
-                else
-                    lineElm.innerHTML = '&nbsp;';
-                elm.appendChild(lineElm);
-                elm.scrollTop = elm.scrollHeight;
-            }
-        }
-
         function writeLineToChat(line)
         {
             var elm = getElmById('chat');
@@ -153,8 +137,17 @@
       <input id="input-chat" type="text" />
       </br >
       <div style="text-align: center">
+         <p>
+             Go home « <a href="/index.html">Home</a> »
+         </p>
           <p>
               View a record of chat for your node at  « <a href="/chat.txt">Chat Log</a> »
+          </p>
+          <p>
+              View a record of Status Messages for your node at  « <a href="/status_log.txt">Status Log</a> »
+          </p>
+          <p>
+              View a record of received ACKs for your node at  « <a href="/ack_log.txt">ACK Log</a> »
           </p>
       </div>
     </body>
