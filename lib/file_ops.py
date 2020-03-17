@@ -11,6 +11,20 @@ def sd_setup():
         # except:
         #     print('did not delete')
         try:
+            f = open('/sd/www/ack_log.txt', 'r')
+            print("Already a ACK log")
+        except:
+            try:
+                os.mkdir('/sd/www')
+                f = open('/sd/www/ack_log.txt', 'w+')
+                f.write("ACK log:\n")
+            except:
+                f = open('/sd/www/ACK_log.txt', 'w+')
+                f.write("ACK log:\n")
+            print("ACK Log created")
+        f.close()
+
+        try:
             f = open('/sd/www/status_log.txt', 'r')
             print("Already a status log")
         except:
@@ -71,6 +85,24 @@ def sd_setup():
         except:
             copy('/flash/www/index.html', '/sd/www/index.html')
             print("Index now on SD card")
+
+        try:
+            f = open('/sd/www/node_config.html', 'r')
+            print("node_config is on SD card")
+            c = open('/flash/www/node_config.html', 'r')
+            count_of_f = len(f.read())
+            count_of_c = len(c.read())
+            f.close()
+            c.close()
+            print("Check if node_config has changed")
+            if count_of_c != count_of_f:
+                os.remove('/sd/www/node_config.html')
+                copy('/flash/www/node_config.html', '/sd/www/node_config.html')
+                print("Copied new node_config")
+
+        except:
+            copy('/flash/www/node_config.html', '/sd/www/node_config.html')
+            print("node_config now on SD card")
 
         try:
             f = open('/sd/www/style.css', 'r')

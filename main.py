@@ -10,10 +10,12 @@ from pycoproc import Pycoproc
 from time          import sleep
 from _thread       import allocate_lock
 
+import gc
 import machine
 import file_ops
 import os
 import pycom
+import ssl
 import socket
 import time
 import utime
@@ -23,6 +25,10 @@ import uos
 from pymesh_config import PymeshConfig
 # except:
 #     from _pymesh_config import PymeshConfig
+try:
+    from network import LTE
+except:
+    print("Not a FIPY")
 
 # try:
 from pymesh import Pymesh
@@ -42,9 +48,11 @@ from pymesh import Pymesh
 #               "Repeater1" : 15,
 #               "MountainRepeater" : 20,
 #               "Portable1" : 25,
-#               "Portable2" : 26
+#               "Portable2" : 26,
+#               "LTE1" : 50,
 #               }
 
+lh_mesh_version = "1.0.5"
 
 # ============================================================================
 
@@ -59,6 +67,7 @@ def OnWebSocketAccepted(microWebSrv2, webSocket) :
     print('   - User   : %s:%s' % webSocket.Request.UserAddress)
     print('   - Path   : %s'    % webSocket.Request.Path)
     print('   - Origin : %s'    % webSocket.Request.Origin)
+    first_time_set()
     if webSocket.Request.Path.lower() == '/wschat' :
         WSJoinChat(webSocket)
     else :
@@ -97,24 +106,30 @@ _chatLock = allocate_lock()
 # ------------------------------------------------------------------------
 
 def WSJoinChat(webSocket) :
+    gc.collect()
+    print("Current available memory after chat join: %d" % gc.mem_free())
     webSocket.OnTextMessage = OnWSChatTextMsg
     webSocket.OnClosed      = OnWSChatClosed
-    first_time_set()
     addr = webSocket.Request.UserAddress
     my_mac = pymesh.mesh.mesh.MAC
     macs = get_macs_for_mess()
     houses_string = pop_mac_list()
     house = mac_to_house(my_mac)
-    msg1 = ('<%s HAS JOINED THE CHAT>' % house)
-    msg2 = ("List of current %s" % houses_string)
+    msg1 = make_message_status(('<%s HAS JOINED THE CHAT>' % house))
+    # msg2 = ("List of current %s" % houses_string)
+    msg_update = last_10_messages()
     with _chatLock :
         for ws in _chatWebSockets :
             ws.SendTextMessage('<%s HAS JOINED THE CHAT>' % house)
-            ws.SendTextMessage("List of current %s" % houses_string)
+            gc.collect()
+            # ws.SendTextMessage("List of current %s" % houses_string)
         _chatWebSockets.append(webSocket)
         house = mac_to_house(my_mac)
         webSocket.SendTextMessage('<WELCOME %s>' % house)
-        webSocket.SendTextMessage("List of current %s" % houses_string)
+        # webSocket.SendTextMessage("List of current %s" % houses_string)
+        for i in range(len(msg_update)-1):
+            webSocket.SendTextMessage('Previous MSG: %s' % msg_update[i])
+            gc.collect()
         # pymesh.send_mess('ff03::1', msg1)
         # pymesh.send_mess('ff03::1', msg2)
         for mac in macs:
@@ -122,13 +137,16 @@ def WSJoinChat(webSocket) :
                 print("skip")
             else:
                 pymesh.send_mess(mac, msg1)
+                gc.collect()
                 time.sleep(1.5)
-                pymesh.send_mess(mac, msg2)
-                time.sleep(1.5)
+                # pymesh.send_mess(mac, msg2)
+                # time.sleep(1.5)
+    print("Current available memory after chat join: %d" % gc.mem_free())
 
 # ------------------------------------------------------------------------
 
 def OnWSChatTextMsg(webSocket, msg) :
+    gc.collect()
     addr = webSocket.Request.UserAddress
     macs = get_macs_for_mess()
     my_mac = pymesh.mesh.mesh.MAC
@@ -139,38 +157,45 @@ def OnWSChatTextMsg(webSocket, msg) :
         for ws in _chatWebSockets :
             #ws.SendTextMessage(': %s' % new_msg)
             ws.SendTextMessage(str(new_msg))
+            gc.collect()
         # pymesh.send_mess('ff03::1', new_msg)
         for mac in macs:
             if mac == my_mac:
                 continue
             else:
                 pymesh.send_mess(mac, str(new_msg))
+                gc.collect()
                 time.sleep(1)
     f = open('/sd/www/chat.txt', 'a+')
     f.write('%s %s\n' % (now_time, msg))
     f.close()
     print('Wrote msg to SD, chat.txt')
+    print("Current available memory after text sent: %d" % gc.mem_free())
 # ------------------------------------------------------------------------
 
 def OnWSChatClosed(webSocket) :
+    gc.collect()
     addr = webSocket.Request.UserAddress
     macs = get_macs_for_mess()
     my_mac = pymesh.mesh.mesh.MAC
     house = mac_to_house(my_mac)
-    msg1 = ('<%s HAS LEFT THE CHAT>' % house)
-    pycom.rgbled(0x00FF00)
+    msg1 = make_message_status(('<%s HAS LEFT THE CHAT>' % house))
+    pycom.rgbled(0x000A00)
     with _chatLock :
         if webSocket in _chatWebSockets :
             _chatWebSockets.remove(webSocket)
             for ws in _chatWebSockets :
                 ws.SendTextMessage(msg1)
+                gc.collect()
         # pymesh.send_mess('ff03::1', msg1)
         for mac in macs:
             if mac == my_mac:
                 continue
             else:
                 pymesh.send_mess(mac, msg1)
+                gc.collect()
                 time.sleep(1)
+    print("Current available memory after chat exit: %d" % gc.mem_free())
 
 def OnMWS2Logging(microWebSrv2, msg, msgType) :
     print('Log from custom function: %s' % msg)
@@ -180,6 +205,13 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 # ============================================================================
 
 print()
+
+def last_10_messages():
+    with open('/sd/www/chat.txt', 'r') as f:
+        all_messages = f.read().split('\n')
+        f.close()
+    last_messages = all_messages[-11:]
+    return last_messages
 
 def create_house_dict():
     house_dict = {}
@@ -240,7 +272,7 @@ def send_baro(sending_mac):
         time.sleep(2)
     elif pysense_s == False:
         no_baro = "This node doesn't have Baro"
-        msg = make_message_status(no_temp)
+        msg = make_message_status(no_baro)
         with _chatLock :
             for ws in _chatWebSockets :
                     ws.SendTextMessage(msg)
@@ -265,6 +297,17 @@ def send_temp(sending_mac):
             pymesh.send_mess(sending_mac, str(msg))
             time.sleep(2)
 
+def send_mesh_version(sending_mac):
+    if len(sending_mac) == 0:
+        print("Mac address format wrong")
+        return
+    msg = make_message_status(("Node SW version: %s" % lh_mesh_version))
+    time.sleep(1)
+    with _chatLock :
+        for ws in _chatWebSockets :
+                ws.SendTextMessage(msg)
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(3)
 
 def make_message_status(msg):
     status_msg = ("STATUS: %s" % msg)
@@ -297,10 +340,10 @@ def set_time(sending_mac, msg):
 
 def first_time_set():
     current_time = utime.localtime()
-    print(mac)
     if current_time[0] == 1970:
         print("Time's wrong, send request to fix")
-        wake = "wake up 1!"
+        wake = make_message_status("wake up 1!")
+        time.sleep(1)
         pymesh.send_mess(1, str(wake))
         time.sleep(3)
         msg = ("JM set my time %s" % str(mac))
@@ -320,7 +363,6 @@ def set_my_time(sending_mac):
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(2)
 
-
 def how_time_set(sending_mac):
     if len(sending_mac) == 0:
         print("Mac address format wrong")
@@ -334,7 +376,7 @@ def how_time_set(sending_mac):
 def get_macs_for_mess():
     house_mac_mess_list = []
     for k, v in house_dict.items():
-        if v == 20 or v ==15:
+        if v == 20 or v ==15 or v==16:
             print("Not adding repeaters to list")
         else:
             house_mac_mess_list.append(v)
@@ -359,29 +401,54 @@ def mac_to_house_list_string(macs):
 
 # Not fully useable while "mml" command only gets nodes connected to leader
 def pop_mac_list():
+    have_mac_list = False
     macs = pymesh.mesh.get_mesh_mac_list()
-    while len(macs[0]) == 0:
+    for i in range(20):
         time.sleep(4)
         macs = pymesh.mesh.get_mesh_mac_list()
-    mac_list = []
-    for mac in macs[0]:
-        mac_list.append(mac)
-    house_online_string = mac_to_house_list_string(mac_list)
+        if len(macs[0]) != 0:
+            have_mac_list = True
+            break
+    # while len(macs[0]) == 0:
+    #     time.sleep(4)
+    #     macs = pymesh.mesh.get_mesh_mac_list()
+    if have_mac_list == False:
+        msg = "This node is not connected to a mesh, power cycle and/or move node"
+        print(msg)
+        with _chatLock :
+            for ws in _chatWebSockets :
+                    ws.SendTextMessage(msg)
+    else:
+        print("making mac list")
+        mac_list = []
+        for mac in macs[0]:
+            mac_list.append(mac)
+        house_online_string = mac_to_house_list_string(mac_list)
+
     return house_online_string
 
 def send_battery_voltage(sending_mac):
     if len(sending_mac) == 0:
         print("Mac address format wrong")
         return
-    volts = str(py.read_battery_voltage())
-    own_mac = str(pymesh.mesh.mesh.MAC)
-    msg = make_message_status(('Mac Address %s battery level is: %s' % (own_mac, volts)))
-    time.sleep(1)
-    with _chatLock :
-        for ws in _chatWebSockets :
-                ws.SendTextMessage(msg)
-        pymesh.send_mess(sending_mac, str(msg))
-        time.sleep(1.5)
+    try:
+        volts = str(py.read_battery_voltage())
+        own_mac = str(pymesh.mesh.mesh.MAC)
+        msg = make_message_status(('Mac Address %s battery level is: %s' % (own_mac, volts)))
+        time.sleep(1)
+        with _chatLock :
+            for ws in _chatWebSockets :
+                    ws.SendTextMessage(msg)
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(1.5)
+    except:
+        if exp31 == True:
+            msg = make_message_status("No ADC")
+            with _chatLock :
+                for ws in _chatWebSockets :
+                        ws.SendTextMessage(msg)
+                pymesh.send_mess(sending_mac, str(msg))
+                time.sleep(1.5)
 
 def send_self_info(sending_mac):
     if len(sending_mac) == 0:
@@ -440,7 +507,11 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         elif msg[:14] == "JM set my time":
             sending_mac = msg[15:]
             set_my_time(sending_mac)
-
+        elif msg[:16] == "JM set your time":
+            first_time_set()
+        elif msg[:11] == "JM send swv":
+            sending_mac = msg[12:]
+            send_mesh_version(sending_mac)
     else:
         with _chatLock :
             for ws in _chatWebSockets :
@@ -450,27 +521,35 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         f.write('%s %s\n' % (now_time, msg))
         f.close()
         print('Wrote msg to SD, chat.txt')
+        for _ in range(5):
+            pycom.rgbled(0x888888)
+            time.sleep(.2)
+            pycom.rgbled(0)
+            time.sleep(.1)
+        pycom.rgbled(0x000066)
 
-    #while True:
-    for _ in range(5):
-        pycom.rgbled(0x888888)
-        time.sleep(.2)
-        pycom.rgbled(0)
-        time.sleep(.1)
     return
-
+gc.enable()
+print("Current available memory: %d" % gc.mem_free())
 pycom.heartbeat(False)
 
 file_ops.sd_setup()
-house_dict = create_house_dict()
+try:
+    house_dict = create_house_dict()
+except:
+    print("There's no SD card, WebAP won't work")
 
 # read config file, or set default values
+
 pymesh_config = PymeshConfig.read_config()
 
 
 #initialize Pymesh
 pymesh = Pymesh(pymesh_config, new_message_cb)
-py = Pycoproc()
+try:
+    py = Pycoproc()
+except:
+    exp31 = True
 rtc = RTC()
 try:
     l76 = L76GNSS(py, timeout=30)
@@ -478,7 +557,6 @@ try:
     print("Pytrack")
 except:
     pytrack_s = False
-    print("Not a Pytrack")
 
 try:
     si = SI7006A20(py)
@@ -488,27 +566,175 @@ try:
     print("Pysense")
 except:
     pysense_s = False
-    print("Not a Pysense")
+
+if pysense_s == False and pytrack_s == False:
+    print("EXP 3.1")
 
 mac = pymesh.mac()
 # if mac > 10:
 #     pymesh.end_device(True)
-if mac == 20:
-     pymesh.leader_priority(255)
-elif mac == 15:
-     pymesh.leader_priority(250)
+# if mac == 20:
+#      pymesh.leader_priority(255)
+# elif mac == 15:
+#      pymesh.leader_priority(250)
 
 while not pymesh.is_connected():
     print(pymesh.status_str())
     time.sleep(3)
 
+print("Current available memory after pymesh load: %d" % gc.mem_free())
+
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="Jamieshouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.EXT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="DennisHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");
 first_time_set()
+pycom.rgbled(0x000A00)
+
+# # send AT command to modem and return response as list
+# def at(cmd):
+#     print("modem command: {}".format(cmd))
+#     r = lte.send_at_cmd(cmd).split('\r\n')
+#     r = list(filter(None, r))
+#     print("response={}".format(r))
+#     return r
+#
+# try:
+#     print("instantiate LTE object")
+#     lte = LTE(carrier="verizon")
+#     print("delay 4 secs")
+#     time.sleep(4.0)
+#
+#     print("reset modem")
+#     try:
+#         lte.reset()
+#     except:
+#         print("Exception during reset")
+#
+#     print("delay 5 secs")
+#     time.sleep(5.0)
+#
+#     if lte.isattached():
+#         try:
+#             print("LTE was already attached, disconnecting...")
+#             if lte.isconnected():
+#                 print("disconnect")
+#                 lte.disconnect()
+#         except:
+#             print("Exception during disconnect")
+#
+#         try:
+#             if lte.isattached():
+#                 print("detach")
+#                 lte.dettach()
+#         except:
+#             print("Exception during dettach")
+#
+#         try:
+#             print("resetting modem...")
+#             lte.reset()
+#         except:
+#             print("Exception during reset")
+#
+#         print("delay 5 secs")
+#         time.sleep(5.0)
+#
+#     # enable network registration and location information, unsolicited result code
+#     at('AT+CEREG=2')
+#
+#     # print("full functionality level")
+#     at('AT+CFUN=1')
+#     time.sleep(1.0)
+#
+#     # using Hologram SIM
+#     at('AT+CGDCONT=1,"IP","hologram"')
+#
+#     print("attempt to attach cell modem to base station...")
+#     # lte.attach()  # do not use attach with custom init for Hologram SIM
+#
+#     at("ATI")
+#     time.sleep(2.0)
+#
+#     i = 0
+#     while lte.isattached() == False:
+#         # get EPS Network Registration Status:
+#         # +CEREG: <stat>[,[<tac>],[<ci>],[<AcT>]]
+#         # <tac> values:
+#         # 0 - not registered
+#         # 1 - registered, home network
+#         # 2 - not registered, but searching...
+#         # 3 - registration denied
+#         # 4 - unknown (out of E-UTRAN coverage)
+#         # 5 - registered, roaming
+#         r = at('AT+CEREG?')
+#         try:
+#             r0 = r[0]  # +CREG: 2,<tac>
+#             r0x = r0.split(',')     # ['+CREG: 2',<tac>]
+#             tac = int(r0x[1])       # 0..5
+#             print("tac={}".format(tac))
+#         except IndexError:
+#             tac = 0
+#             print("Index Error!!!")
+#
+#         # get signal strength
+#         # +CSQ: <rssi>,<ber>
+#         # <rssi>: 0..31, 99-unknown
+#         r = at('AT+CSQ')
+#
+#         # extended error report
+#         # r = at('AT+CEER')
+#
+#         # if lte.isattached():
+#         #    print("Modem attached (isattached() function worked)!!!")
+#         #    break
+#
+#         # if (tac==1) or (tac==5):
+#         #    print("Modem attached!!!")
+#         #    break
+#
+#         i = i + 5
+#         print("not attached: {} secs".format(i))
+#         print("attached")
+# except:
+#     print("Not a fipy")
+
+# try:
+#     lte = LTE()    # instantiate the LTE object
+#     lte.send_at_cmd('AT^RESET')
+#     print("Resestted modem")
+#     time.sleep(1)
+#     lte.attach(apn='hologram')        # attach the cellular modem to a base station, initially it was lte.attach()
+#     print( " While loop1") # print stmt to check on terminal
+#     time.sleep(5) # added 5 seconds wait
+#     pycom.rgbled(0x0000ff) # BLUE LED
+#     while not lte.isattached():
+#         print('Signal:%s'%lte.send_at_cmd('AT+CSQ'))
+#         lte.send_at_cmd('AT+CSQ')
+#         print('Status:%s '%lte.send_at_cmd('AT+CEER'))
+#         lte.send_at_cmd('AT+CEER')
+#         time.sleep(5)  # originally 0.25 changed to 5.0
+#         lte.attach()
+#     lte.connect(cid=3)       # start a data session and obtain an IP address
+#     print( " While loop2")
+#     pycom.rgbled(0x00ff00) # GREEN LED
+#     while not lte.isconnected():
+#         time.sleep(0.25)
+#
+#     s = socket.socket()
+#     s = ssl.wrap_socket(s)
+#     s.connect(socket.getaddrinfo('www.google.com', 443)[0][-1])
+#     s.send(b"GET / HTTP/1.0\r\n\r\n")
+#     print(s.recv(4096))
+#     s.close()
+#
+#     lte.disconnect()
+#     lte.dettach()
+#     print( " While end loop")
+#     pycom.rgbled(0xff0000) # RED LED, if it reached here we were successful
+# except:
+#     print("Node is not a FIPY")
 
 # Loads the PyhtmlTemplate module globally and configure it,
 pyhtmlMod = MicroWebSrv2.LoadModule('PyhtmlTemplate')
@@ -537,6 +763,8 @@ mws2.NotFoundURL = '/'
 
 # Starts the server as easily as possible in managed mode,
 mws2.StartManaged()
+
+print("Current available memory after wifi ap loads: %d" % gc.mem_free())
 
 # Main program loop until keyboard interrupt,
 try :
