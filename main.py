@@ -35,24 +35,8 @@ from pymesh import Pymesh
 # except:
 #     from _pymesh import Pymesh
 
-# house_dict = {"Jamies_House" : 1,
-#               "Bobs_House" : 2,
-#               "Ranges_House" : 3,
-#               "Johns_House" : 4,
-#               "Dennis_House" : 5,
-#               "Marks_House" : 6,
-#               "Susans_House" : 7,
-#               "Tams_House" : 8,
-#               "Bens_House" : 9,
-#               "Garage" : 10,
-#               "Repeater1" : 15,
-#               "MountainRepeater" : 20,
-#               "Portable1" : 25,
-#               "Portable2" : 26,
-#               "LTE1" : 50,
-#               }
 
-lh_mesh_version = "1.0.5"
+lh_mesh_version = "1.1.1"
 
 # ============================================================================
 
@@ -67,7 +51,6 @@ def OnWebSocketAccepted(microWebSrv2, webSocket) :
     print('   - User   : %s:%s' % webSocket.Request.UserAddress)
     print('   - Path   : %s'    % webSocket.Request.Path)
     print('   - Origin : %s'    % webSocket.Request.Origin)
-    first_time_set()
     if webSocket.Request.Path.lower() == '/wschat' :
         WSJoinChat(webSocket)
     else :
@@ -110,62 +93,66 @@ def WSJoinChat(webSocket) :
     print("Current available memory after chat join: %d" % gc.mem_free())
     webSocket.OnTextMessage = OnWSChatTextMsg
     webSocket.OnClosed      = OnWSChatClosed
-    addr = webSocket.Request.UserAddress
-    my_mac = pymesh.mesh.mesh.MAC
-    macs = get_macs_for_mess()
-    houses_string = pop_mac_list()
-    house = mac_to_house(my_mac)
-    msg1 = make_message_status(('<%s HAS JOINED THE CHAT>' % house))
+    # addr = webSocket.Request.UserAddress
+    # my_mac = pymesh.mesh.mesh.MAC
+    # macs = get_macs_for_mess()
+    # houses_string = pop_mac_list()
+    # house = mac_to_house(my_mac)
+    # msg1 = make_message_status(('<%s HAS JOINED THE CHAT>' % house))
     # msg2 = ("List of current %s" % houses_string)
     msg_update = last_10_messages()
     with _chatLock :
-        for ws in _chatWebSockets :
-            ws.SendTextMessage('<%s HAS JOINED THE CHAT>' % house)
-            gc.collect()
+        # for ws in _chatWebSockets :
+        #     ws.SendTextMessage('<%s HAS JOINED THE CHAT>' % house)
+        #     gc.collect()
             # ws.SendTextMessage("List of current %s" % houses_string)
         _chatWebSockets.append(webSocket)
-        house = mac_to_house(my_mac)
-        webSocket.SendTextMessage('<WELCOME %s>' % house)
+        # house = mac_to_house(my_mac)
+        # webSocket.SendTextMessage('<WELCOME %s>' % house)
         # webSocket.SendTextMessage("List of current %s" % houses_string)
         for i in range(len(msg_update)-1):
             webSocket.SendTextMessage('Previous MSG: %s' % msg_update[i])
             gc.collect()
         # pymesh.send_mess('ff03::1', msg1)
+        time.sleep(2)
         # pymesh.send_mess('ff03::1', msg2)
-        for mac in macs:
-            if mac == my_mac:
-                print("skip")
-            else:
-                pymesh.send_mess(mac, msg1)
-                gc.collect()
-                time.sleep(1.5)
-                # pymesh.send_mess(mac, msg2)
-                # time.sleep(1.5)
+        # for mac in macs:
+        #     if mac == my_mac:
+        #         print("skip")
+        #     else:
+        #         pymesh.send_mess(mac, msg1)
+        #         gc.collect()
+        #         time.sleep(1.5)
+        #         # pymesh.send_mess(mac, msg2)
+        #         # time.sleep(1.5)
     print("Current available memory after chat join: %d" % gc.mem_free())
 
 # ------------------------------------------------------------------------
 
 def OnWSChatTextMsg(webSocket, msg) :
     gc.collect()
-    addr = webSocket.Request.UserAddress
-    macs = get_macs_for_mess()
-    my_mac = pymesh.mesh.mesh.MAC
-    house = mac_to_house(my_mac)
-    new_msg = ('%s: %s' % (str(house), msg))
+    first_time_set()
+    # addr = webSocket.Request.UserAddress
+    # macs = get_macs_for_mess()
+    # my_mac = pymesh.mesh.mesh.MAC
+    # house = mac_to_house(my_mac)
+    # new_msg = ('%s: %s' % (str(house), msg))
+
     now_time = current_time()
     with _chatLock :
         for ws in _chatWebSockets :
             #ws.SendTextMessage(': %s' % new_msg)
-            ws.SendTextMessage(str(new_msg))
+            ws.SendTextMessage(str(msg))
             gc.collect()
-        # pymesh.send_mess('ff03::1', new_msg)
-        for mac in macs:
-            if mac == my_mac:
-                continue
-            else:
-                pymesh.send_mess(mac, str(new_msg))
-                gc.collect()
-                time.sleep(1)
+        pymesh.send_mess('ff03::1', msg)
+        time.sleep(2)
+        # for mac in macs:
+        #     if mac == my_mac:
+        #         continue
+        #     else:
+        #         pymesh.send_mess(mac, str(new_msg))
+        #         gc.collect()
+        #         time.sleep(1)
     f = open('/sd/www/chat.txt', 'a+')
     f.write('%s %s\n' % (now_time, msg))
     f.close()
@@ -175,26 +162,27 @@ def OnWSChatTextMsg(webSocket, msg) :
 
 def OnWSChatClosed(webSocket) :
     gc.collect()
-    addr = webSocket.Request.UserAddress
-    macs = get_macs_for_mess()
-    my_mac = pymesh.mesh.mesh.MAC
-    house = mac_to_house(my_mac)
-    msg1 = make_message_status(('<%s HAS LEFT THE CHAT>' % house))
+    # addr = webSocket.Request.UserAddress
+    # macs = get_macs_for_mess()
+    # my_mac = pymesh.mesh.mesh.MAC
+    # house = mac_to_house(my_mac)
+    # msg1 = make_message_status(('<%s HAS LEFT THE CHAT>' % house))
     pycom.rgbled(0x000A00)
     with _chatLock :
         if webSocket in _chatWebSockets :
             _chatWebSockets.remove(webSocket)
-            for ws in _chatWebSockets :
-                ws.SendTextMessage(msg1)
-                gc.collect()
-        # pymesh.send_mess('ff03::1', msg1)
-        for mac in macs:
-            if mac == my_mac:
-                continue
-            else:
-                pymesh.send_mess(mac, msg1)
-                gc.collect()
-                time.sleep(1)
+            # for ws in _chatWebSockets :
+            #     ws.SendTextMessage(msg1)
+            #     gc.collect()
+        pymesh.send_mess('ff03::1', msg1)
+        time.sleep(2)
+        # for mac in macs:
+        #     if mac == my_mac:
+        #         continue
+        #     else:
+        #         pymesh.send_mess(mac, msg1)
+        #         gc.collect()
+        #         time.sleep(1)
     print("Current available memory after chat exit: %d" % gc.mem_free())
 
 def OnMWS2Logging(microWebSrv2, msg, msgType) :
@@ -213,34 +201,34 @@ def last_10_messages():
     last_messages = all_messages[-11:]
     return last_messages
 
-def create_house_dict():
-    house_dict = {}
-    with open('/sd/lib/houses.txt') as f:
-        house_list = f.read().split('\r\n')
-        f.close()
-    for i in range(len(house_list)):
-        temp_list = list(house_list[i].split(', '))
-        house_dict[temp_list[0]] = int(temp_list[1])
-    return house_dict
+# def create_house_dict():
+#     house_dict = {}
+#     with open('/sd/lib/houses.txt') as f:
+#         house_list = f.read().split('\r\n')
+#         f.close()
+#     for i in range(len(house_list)):
+#         temp_list = list(house_list[i].split(', '))
+#         house_dict[temp_list[0]] = int(temp_list[1])
+#     return house_dict
 
-def add_node_to_text(msg):
-    node_from_string = msg[12:]
-    with open('/sd/lib/houses.txt', 'a') as f:
-        f.write('\r\n')
-        f.write(node_from_string)
-        f.close()
-    house_dict = create_house_dict()
-    return house_dict
+# def add_node_to_text(msg):
+#     node_from_string = msg[12:]
+#     with open('/sd/lib/houses.txt', 'a') as f:
+#         f.write('\r\n')
+#         f.write(node_from_string)
+#         f.close()
+#     house_dict = create_house_dict()
+#     return house_dict
 
-def send_nodes(sending_mac):
-    house_dict = create_house_dict()
-    msg = make_message_status(str(house_dict))
-    time.sleep(1)
-    with _chatLock :
-        for ws in _chatWebSockets :
-                ws.SendTextMessage(msg)
-        pymesh.send_mess(sending_mac, str(msg))
-        time.sleep(2)
+# def send_nodes(sending_mac):
+#     house_dict = create_house_dict()
+#     msg = make_message_status(str(house_dict))
+#     time.sleep(1)
+#     with _chatLock :
+#         for ws in _chatWebSockets :
+#                 ws.SendTextMessage(msg)
+#         pymesh.send_mess(sending_mac, str(msg))
+#         time.sleep(2)
 
 def sending_gps(sending_mac):
     if pytrack_s == True:
@@ -534,10 +522,10 @@ print("Current available memory: %d" % gc.mem_free())
 pycom.heartbeat(False)
 
 file_ops.sd_setup()
-try:
-    house_dict = create_house_dict()
-except:
-    print("There's no SD card, WebAP won't work")
+# try:
+#     house_dict = create_house_dict()
+# except:
+#     print("There's no SD card, WebAP won't work")
 
 # read config file, or set default values
 
@@ -586,7 +574,7 @@ print("Current available memory after pymesh load: %d" % gc.mem_free())
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="DennisHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="JamiesHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 print("AP setting up");

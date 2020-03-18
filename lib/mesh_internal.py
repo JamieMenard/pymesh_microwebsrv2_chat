@@ -519,12 +519,15 @@ class MeshInternal:
                 print("PACK_MESSAGE received")
                 # add new pack received
                 message = Message(rcv_data)
-                print(message.payload)
+                print("This is the payload %s" % message.payload)
                 message.ip = rcv_ip
                 self.messages.add_rcv_message(message)
 
                 # send back ACK
-                self.send_pack(self.PACK_MESSAGE_ACK, message.pack_ack(self.MAC), rcv_ip)
+                if message.payload[:2] == (b'JM'):
+                    self.send_pack(self.PACK_MESSAGE_ACK, message.pack_ack(self.MAC), rcv_ip)
+                else:
+                    print("Not Sending ACK")
 
                 # forward message to user-application layer
                 if self.message_cb:
