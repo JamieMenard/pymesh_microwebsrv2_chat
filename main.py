@@ -15,11 +15,14 @@ import machine
 import file_ops
 import os
 import pycom
-import ssl
 import socket
+import ssl
+import sys
+import thread
 import time
 import utime
 import uos
+
 
 # try:
 from pymesh_config import PymeshConfig
@@ -27,7 +30,9 @@ from pymesh_config import PymeshConfig
 #     from _pymesh_config import PymeshConfig
 try:
     from network import LTE
+    has_LTE = True
 except:
+    has_LTE = False
     print("Not a FIPY")
 
 # try:
@@ -52,7 +57,7 @@ from pymesh import Pymesh
 #               "LTE1" : 50,
 #               }
 
-lh_mesh_version = "1.0.5"
+lh_mesh_version = "1.0.7"
 
 # ============================================================================
 
@@ -67,7 +72,8 @@ def OnWebSocketAccepted(microWebSrv2, webSocket) :
     print('   - User   : %s:%s' % webSocket.Request.UserAddress)
     print('   - Path   : %s'    % webSocket.Request.Path)
     print('   - Origin : %s'    % webSocket.Request.Origin)
-    first_time_set()
+    # _thread.start_new_thread(first_time_set, ())
+    # first_time_set()
     if webSocket.Request.Path.lower() == '/wschat' :
         WSJoinChat(webSocket)
     else :
@@ -151,19 +157,19 @@ def OnWSChatTextMsg(webSocket, msg) :
     macs = get_macs_for_mess()
     my_mac = pymesh.mesh.mesh.MAC
     house = mac_to_house(my_mac)
-    new_msg = ('%s: %s' % (str(house), msg))
+    # new_msg = ('%s: %s' % (str(house), msg))
     now_time = current_time()
     with _chatLock :
         for ws in _chatWebSockets :
             #ws.SendTextMessage(': %s' % new_msg)
-            ws.SendTextMessage(str(new_msg))
+            ws.SendTextMessage(str(msg))
             gc.collect()
         # pymesh.send_mess('ff03::1', new_msg)
         for mac in macs:
             if mac == my_mac:
                 continue
             else:
-                pymesh.send_mess(mac, str(new_msg))
+                pymesh.send_mess(mac, str(msg))
                 gc.collect()
                 time.sleep(1)
     f = open('/sd/www/chat.txt', 'a+')
@@ -205,6 +211,14 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 # ============================================================================
 
 print()
+
+# send AT command to modem and return response as list
+def at(cmd):
+    print("modem command: {}".format(cmd))
+    r = lte.send_at_cmd(cmd).split('\r\n')
+    r = list(filter(None, r))
+    print("response={}".format(r))
+    return r
 
 def last_10_messages():
     with open('/sd/www/chat.txt', 'r') as f:
@@ -463,6 +477,81 @@ def send_self_info(sending_mac):
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(3)
 
+def nodes_macs():
+    nmn = pymesh.mesh.mesh.mesh.mesh.neighbors()
+    my_node_mesh_mac = []
+    try:
+        for i in range(len(nmn)):
+            my_node_mesh_mac.append((nmn[i][0]))
+        print("List of direct neigbors: %s" % pymesh.mesh.mesh.mesh.mesh.neighbors())
+        with open('/sd/lib/my_node_neighors.txt', 'a') as f:
+            f.write(str(my_node_mesh_mac))
+            f.close()
+        mesh_leader = pymesh.mesh.mesh.mesh.leader_data.mac
+        my_mac = pymesh.mesh.mesh.MAC
+        if mesh_leader == my_mac:
+            with open('/sd/lib/leader_mac_mesh.txt', 'a') as f:
+                f.write(str(my_node_mesh_mac))
+                print("write leader mac nodes")
+                f.close()
+        return my_node_mesh_mac
+    except:
+        print("not connected to a mesh")
+        return
+
+def node_neighbor_data(sending_mac):
+    my_node_mesh_mac = nodes_macs()
+    msg = ("JM leader add %s" % str(my_node_mesh_mac))
+    with _chatLock :
+        pymesh.send_mess(sending_mac, str(msg))
+        time.sleep(3)
+    return my_node_mesh_mac
+
+def mesh_macs_list():
+    # Add this nodes neigbors to file
+    this_nodes_macs = nodes_macs()
+    my_mac = str(pymesh.mesh.mesh.MAC)
+    # find leader mac
+    mesh_leader = pymesh.mesh.mesh.mesh.leader_data.mac
+    print(mesh_leader)
+    # send the leader node a message to find mesh macs
+    msg = ("JM send leader macs %s" % str(my_mac))
+    with _chatLock :
+        pymesh.send_mess(mesh_leader, str(msg))
+        time.sleep(3)
+    # the leader will then respond with a mesg to append more nodes to mesh mac file
+
+def send_leader_neighbor_data(sending_mac):
+    # first add direct neigbors to file
+    this_nodes_macs = nodes_macs()
+    # this nodes macs
+    my_mac = str(pymesh.mesh.mesh.MAC)
+    # Then, find node in mml
+    macs = pymesh.mesh.mesh.mesh.mesh.neighbors()
+    # Define message to send back neighbors from each in mml
+    msg = ("JM send mesh %s" % str(my_mac))
+    time.sleep(2)
+    # message each mac from mml to get their neighbors
+    with _chatLock :
+        for mac in macs:
+            if mac == my_mac:
+                continue
+            else:
+                print(mac[0])
+                pymesh.send_mess(mac[0], str(msg))
+                gc.collect()
+                time.sleep(1)
+
+def add_macs_to_leader(macs_to_add):
+    with open('/sd/lib/leader_mac_mesh.txt', 'a') as f:
+        f.write(str(macs_to_add))
+        f.close()
+    with open('/sd/lib/leader_mac_mesh.txt') as f:
+        mac_list = f.read().split('\r\n')
+        f.close()
+    print(mac_list)
+
+
 def new_message_cb(rcv_ip, rcv_port, rcv_data):
     ''' callback triggered when a new packet arrived '''
     print('Incoming %d bytes from %s (port %d):' %
@@ -512,6 +601,17 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         elif msg[:11] == "JM send swv":
             sending_mac = msg[12:]
             send_mesh_version(sending_mac)
+        elif msg[:15] == "JM get all macs":
+            mesh_macs_list()
+        elif msg[:12] == "JM send mesh":
+            sending_mac = msg[13:]
+            node_neighbor_data(sending_mac)
+        elif msg[:19] == "JM send leader macs":
+            sending_mac = msg[20:]
+            send_leader_neighbor_data(sending_mac)
+        elif msg[:13] == "JM leader add":
+            macs_to_add = msg[15:]
+            add_macs_to_leader(macs_to_add)
     else:
         with _chatLock :
             for ws in _chatWebSockets :
@@ -586,35 +686,14 @@ print("Current available memory after pymesh load: %d" % gc.mem_free())
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="DennisHouse", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid="RepeaterU", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
-print("AP setting up");
-first_time_set()
-pycom.rgbled(0x000A00)
-
-# # send AT command to modem and return response as list
-# def at(cmd):
-#     print("modem command: {}".format(cmd))
-#     r = lte.send_at_cmd(cmd).split('\r\n')
-#     r = list(filter(None, r))
-#     print("response={}".format(r))
-#     return r
-#
-# try:
+# if has_LTE == True:
 #     print("instantiate LTE object")
-#     lte = LTE(carrier="verizon")
+#     lte = LTE()
 #     print("delay 4 secs")
 #     time.sleep(4.0)
-#
-#     print("reset modem")
-#     try:
-#         lte.reset()
-#     except:
-#         print("Exception during reset")
-#
-#     print("delay 5 secs")
-#     time.sleep(5.0)
 #
 #     if lte.isattached():
 #         try:
@@ -696,45 +775,74 @@ pycom.rgbled(0x000A00)
 #
 #         i = i + 5
 #         print("not attached: {} secs".format(i))
-#         print("attached")
-# except:
-#     print("Not a fipy")
+#
+#         if (tac != 0):
+#             blink(BLUE, tac)
+#         else:
+#             blink(RED, 1)
+#
+#         time.sleep(5)
+#     time.sleep(60)
+#     print("set mode to text")
+#     at('AT+CMGF=1')
+#     print("set to check messages on sim")
+#     at('AT+CPMS="SM", "SM", "SM"')
+#     print("check message at 2")
+#     try:
+#         at('AT+CMGL="all"')
+#     except:
+#         print("no message")
+#
+#     # time.sleep(.5)
+#     # at('AT+CMGS="15084103870"\rWorking\0x1a')
+#     # print("sent!")
+#
+#     at('AT+CEREG?')
+#     # print("Attempt to connect")
+#     # try:
+#     #     lte.connect()
+#     #     i = 0
+#     #     while not lte.isconnected():
+#     #         i = i + 1
+#     #         print("not connected: {}".format(i))
+#     #         blink(GREEN, 1)
+#     #         time.sleep(1.0)
+#     #
+#     #     print("connected!!!")
+#     #     pycom.rgbled(BLUE)
+#     #
+#     # except:
+#     #     print("yeah, that broke")
+#
+#     def wait_for_200_seconds():
+#         for i in range(120):
+#             print(i)
+#             time.sleep(1)
+#         lte.disconnect()
+#         try:
+#             at('AT+CMGL="all"')
+#         except:
+#             print("no message")
+#         lte.dettach()
+#         print("disconnect")
+#         for i in range(10):
+#             blink(YELLOW,1)
+#             time.sleep(1.0)
+#
+#     _thread.start_new_thread(wait_for_200_seconds, ())
+#
+#
+#
+#
+#     # end of test, Red LED
+#     print("end of test")
 
-# try:
-#     lte = LTE()    # instantiate the LTE object
-#     lte.send_at_cmd('AT^RESET')
-#     print("Resestted modem")
-#     time.sleep(1)
-#     lte.attach(apn='hologram')        # attach the cellular modem to a base station, initially it was lte.attach()
-#     print( " While loop1") # print stmt to check on terminal
-#     time.sleep(5) # added 5 seconds wait
-#     pycom.rgbled(0x0000ff) # BLUE LED
-#     while not lte.isattached():
-#         print('Signal:%s'%lte.send_at_cmd('AT+CSQ'))
-#         lte.send_at_cmd('AT+CSQ')
-#         print('Status:%s '%lte.send_at_cmd('AT+CEER'))
-#         lte.send_at_cmd('AT+CEER')
-#         time.sleep(5)  # originally 0.25 changed to 5.0
-#         lte.attach()
-#     lte.connect(cid=3)       # start a data session and obtain an IP address
-#     print( " While loop2")
-#     pycom.rgbled(0x00ff00) # GREEN LED
-#     while not lte.isconnected():
-#         time.sleep(0.25)
-#
-#     s = socket.socket()
-#     s = ssl.wrap_socket(s)
-#     s.connect(socket.getaddrinfo('www.google.com', 443)[0][-1])
-#     s.send(b"GET / HTTP/1.0\r\n\r\n")
-#     print(s.recv(4096))
-#     s.close()
-#
-#     lte.disconnect()
-#     lte.dettach()
-#     print( " While end loop")
-#     pycom.rgbled(0xff0000) # RED LED, if it reached here we were successful
-# except:
-#     print("Node is not a FIPY")
+
+
+print("AP setting up");
+# first_time_set()
+pycom.rgbled(0x000A00)
+
 
 # Loads the PyhtmlTemplate module globally and configure it,
 pyhtmlMod = MicroWebSrv2.LoadModule('PyhtmlTemplate')

@@ -142,6 +142,66 @@ def sd_setup():
                 copy('/flash/lib/houses.txt', '/sd/lib/houses.txt')
                 print("House List now on SD card")
 
+        try:
+            print("check node_mac_mesh status")
+            f = open('/sd/lib/my_node_neighors.txt', 'r')
+            print("Node Mesh Mac list is on SD Card")
+            c = open('/flash/lib/my_node_neighors.txt', 'r')
+            count_of_f = len(f.read())
+            count_of_c = len(c.read())
+            f.close()
+            c.close()
+            print("Check if Node Mesh Mac List has changed")
+            if count_of_c > count_of_f:
+                os.remove('/sd/lib/my_node_neighors.txt')
+                copy('/flash/lib/my_node_neighors.txt', '/sd/lib/my_node_neighors.txt')
+                print("Updated node Mesh macs List from flash to SD")
+            elif count_of_c < count_of_f:
+                os.remove('/flash/lib/my_node_neighors.txt')
+                copy('/sd/lib/my_node_neighors.txt', '/flash/lib/my_node_neighors.txt')
+                print("Updated node mesh macs List from SD to flash")
+            else:
+                print("No changes made to house list.")
+
+        except:
+            try:
+                os.mkdir('/sd/lib')
+                copy('/flash/lib/my_node_neighors.txt', '/sd/lib/my_node_neighors.txt')
+                print("House List now on SD card")
+            except:
+                copy('/flash/lib/my_node_neighors.txt', '/sd/lib/my_node_neighors.txt')
+                print("House List now on SD card")
+
+        try:
+            print("check leader_mac_mesh status")
+            f = open('/sd/lib/leader_mac_mesh.txt', 'r')
+            print("Node Mesh Mac list is on SD Card")
+            c = open('/flash/lib/leader_mac_mesh.txt', 'r')
+            count_of_f = len(f.read())
+            count_of_c = len(c.read())
+            f.close()
+            c.close()
+            print("Check if Node Mesh Mac List has changed")
+            if count_of_c > count_of_f:
+                os.remove('/sd/lib/leader_mac_mesh.txt')
+                copy('/flash/lib/leader_mac_mesh.txt', '/sd/lib/leader_mac_mesh.txt')
+                print("Updated node Mesh macs List from flash to SD")
+            elif count_of_c < count_of_f:
+                os.remove('/flash/lib/leader_mac_mesh.txt')
+                copy('/sd/lib/leader_mac_mesh.txt', '/flash/lib/leader_mac_mesh.txt')
+                print("Updated node mesh macs List from SD to flash")
+            else:
+                print("No changes made to house list.")
+
+        except:
+            try:
+                os.mkdir('/sd/lib')
+                copy('/flash/lib/leader_mac_mesh.txt', '/sd/lib/leader_mac_mesh.txt')
+                print("House List now on SD card")
+            except:
+                copy('/flash/lib/leader_mac_mesh.txt', '/sd/lib/leader_mac_mesh.txt')
+                print("House List now on SD card")
+
     except:
         print("SD card not loaded, chat not saved")
 
