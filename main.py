@@ -40,7 +40,7 @@ from pymesh import Pymesh
 # except:
 #     from _pymesh import Pymesh
 
-lh_mesh_version = "1.0.8"
+lh_mesh_version = "1.0.9"
 
 
 
