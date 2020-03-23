@@ -14,7 +14,7 @@ import time
 
 class PymeshConfig:
 
-    CONFIG_FILENAME = "/flash/pymesh_config.json"
+    CONFIG_FILENAME = "/sd/www/pymesh_config.json"
 
     ############################################################
     # DEFAULT SETTINGS

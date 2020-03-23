@@ -63,19 +63,32 @@ def RequestTestPost(microWebSrv2, request) :
         <body>
             <h2>LHVW Chat Node Configuration 1/2</h2>
             User address: %s<br />
-            <form action="/test-post" method="post">
-                WIFI SSID: <input type="text" placeholder=%s name="SSID"><br />
-                WIFI Password:  <input type="text" placeholder=%s name="PASS"><br />
-                Node Mac:  <input type="text" placeholder=%s name="MAC"><br />
-                Node Name:  <input type="text" placeholder=%s name="NODENAME"><br />
-                Mesh Frequency:  <input type="text" placeholder=%s name="FREQ"><br />
-                904600000<br />
-                Mesh bandwidth:  <input type="text" placeholder=%s name="BAND"><br />
-                LoRa.BW_125KHZ<br />
-                Spreading Factor:  <input type="text" placeholder=%s name="SPRDFACT"><br />
+            <form action="/node-config" method="post">
+                WIFI SSID: <input type="text" value=%s name="SSID"><br />
+                WIFI Password:  <input type="text" value=%s name="PASS"><br />
+                Node Mac:  <input type="text" value=%s name="MAC"><br />
+                <br />
+                <br />
+                If any of the values below are changed, they need to be changed <br />
+                on every node in the mesh or else the mesh won't connect.<br />
+                Tread cautiously, but this is how you make your mesh 'unique'.<br />
+
+                Node Name:  <input type="text" value=%s name="NODENAME"><br />
+                Mesh Frequency:  <input type="text" value=%s name="FREQ"><br />
+                From 902000000 to 915000000, default is 904600000<br />
+                Mesh bandwidth:  <input type="text" value=%s name="BAND"><br />
+                LoRa.BW_125KHZ is "0"<br />
+                LoRa.BW_250KHZ is "1"<br />
+                LoRa.BW_500KHZ is "2"<br />
+                Spreading Factor:  <input type="text" value=%s name="SPRDFACT"><br />
                 7 is fastest, 12 is slow with longer range<br />
-                Mesh Key:  <input type="text" placeholder=%s name="KEY"><br />
+                Mesh Key:  <input type="text" value=%s name="MESHKEY"><br />
                 112233<br />
+                <br />
+                <br />
+                Double check everything before you click submit<br />
+                A really fubar entry will lock up the node and require a hard rest<br />
+                Error checking eventually.
 
                 <input type="submit" value="OK">
             </form>
@@ -97,7 +110,7 @@ def RequestTestPost(microWebSrv2, request) :
         mesh_freq = data['FREQ']
         mesh_band = data['BAND']
         spread_fact = data['SPRDFACT']
-        key = data['KEY']
+        mesh_key = data['MESHKEY']
 
         node_dict = {
         'WIFI_SSID': str(ssid),
@@ -107,7 +120,7 @@ def RequestTestPost(microWebSrv2, request) :
         'MESH_FREQ': str(mesh_freq),
         'MESH_BAND': str(mesh_band),
         'SPREAD_FACT': str(spread_fact),
-        'MESH_KEY': str(key)
+        'MESH_KEY': str(mesh_key)
         }
 
     except :
@@ -122,6 +135,12 @@ def RequestTestPost(microWebSrv2, request) :
     except:
         print("Failed")
 
+    try:
+        write_json_config_file(mac, mesh_freq, mesh_band, spread_fact, mesh_key)
+        print("written")
+    except:
+        print("Not writing json")
+
     content   = """\
     <!DOCTYPE html>
     <html>
@@ -131,6 +150,8 @@ def RequestTestPost(microWebSrv2, request) :
         <body>
             <h2>MicroWebSrv2 - POST 2/2</h2>
             Node config has been set<br />
+            Power Cycle Node for settings to take effect<br />
+            Or go back to home to redo settings if you made a mistake <br />
         </body>
     </html>
     """
@@ -299,6 +320,15 @@ def last_10_messages():
         f.close()
     last_messages = all_messages[-11:]
     return last_messages
+
+def write_json_config_file(mac, freq, band, sprd, key):
+    json_config = ('{"ble_api": false, "autostart": true, "ble_name_prefix": "PyGo ", "debug": 5, "LoRa": {"sf": %s, "region": 8, "freq": %s, "bandwidth": %s, "tx_power": 14}, "MAC": %s, "Pymesh": {"key": "%s"}}' % (sprd, freq, band, mac, key))
+    try:
+        with open('/sd/www/pymesh_config.json', 'w+') as f:
+            f.write(str(json_config))
+            f.close()
+    except:
+        print("File didn't write")
 
 def create_node_config_dict():
     node_config_dict = {}

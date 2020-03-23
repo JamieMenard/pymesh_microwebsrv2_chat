@@ -7,12 +7,13 @@ def sd_setup():
         os.mount(sd, '/sd')
         print("SD card mounted")
         # try:
-        #     os.remove('/sd/www/node_config.txt')
+        #     os.remove('/sd/pymesh_config.json')
         # except:
         #     print('did not delete')
         try:
             f = open('/sd/www/ack_log.txt', 'r')
             print("Already a ACK log")
+            f.close()
         except:
             try:
                 os.mkdir('/sd/www')
@@ -27,6 +28,7 @@ def sd_setup():
         try:
             f = open('/sd/www/status_log.txt', 'r')
             print("Already a status log")
+            f.close()
         except:
             try:
                 os.mkdir('/sd/www')
@@ -41,6 +43,7 @@ def sd_setup():
         try:
             f = open('/sd/www/chat.txt', 'r')
             print("Already a chat log")
+            f.close()
         except:
             try:
                 os.mkdir('/sd/www')
@@ -69,24 +72,6 @@ def sd_setup():
         except:
             copy('/flash/www/wschat.html', '/sd/www/wschat.html')
             print("WSChat now on SD card")
-
-        try:
-            f = open('/sd/www/node_config_page.html', 'r')
-            print("Node Config is on SD card")
-            c = open('/flash/www/node_config_page.html', 'r')
-            count_of_f = len(f.read())
-            count_of_c = len(c.read())
-            f.close()
-            c.close()
-            print("Check if Node Config has changed")
-            if count_of_c != count_of_f:
-                os.remove('/sd/www/node_config_page.html')
-                copy('/flash/www/node_config_page.html', '/sd/www/node_config_page.html')
-                print("Copied new Node Config")
-
-        except:
-            copy('/flash/www/node_config_page.html', '/sd/www/node_config_page.html')
-            print("Node Config now on SD card")
 
         try:
             f = open('/sd/www/index.html', 'r')
@@ -146,6 +131,7 @@ def sd_setup():
         try:
             print("Check Node Config status")
             f = open('/sd/www/node_config.txt', 'r')
+            f.close()
             print("Node Config is on SD Card")
 
         except:
@@ -156,6 +142,19 @@ def sd_setup():
             except:
                 copy('/flash/node_config.txt', '/sd/www/node_config.txt')
                 print("Node config is now on SD card")
+
+        try:
+            print("Check Pymesh Config status")
+            f = open('/sd/www/pymesh_config.json', 'r')
+            f.close()
+            print("Pymesh Config is on SD Card")
+            # os.remove('/flash/pymesh_config.json')
+            # copy('/sd/www/pymesh_config.json', '/flash/pymesh_config.json')
+
+
+        except:
+                copy('/flash/pymesh_config.json', '/sd/www/pymesh_config.json')
+                print("Pymesh config is now on SD card")
 
     except:
         print("SD card not loaded, chat not saved")
