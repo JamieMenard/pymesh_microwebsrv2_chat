@@ -18,7 +18,7 @@ import pycom
 import socket
 import ssl
 import sys
-import thread
+import _thread
 import time
 import utime
 import uos
@@ -40,30 +40,103 @@ from pymesh import Pymesh
 # except:
 #     from _pymesh import Pymesh
 
-# house_dict = {"Jamies_House" : 1,
-#               "Bobs_House" : 2,
-#               "Ranges_House" : 3,
-#               "Johns_House" : 4,
-#               "Dennis_House" : 5,
-#               "Marks_House" : 6,
-#               "Susans_House" : 7,
-#               "Tams_House" : 8,
-#               "Bens_House" : 9,
-#               "Garage" : 10,
-#               "Repeater1" : 15,
-#               "MountainRepeater" : 20,
-#               "Portable1" : 25,
-#               "Portable2" : 26,
-#               "LTE1" : 50,
-#               }
+lh_mesh_version = "1.0.8"
 
-lh_mesh_version = "1.0.7"
+
 
 # ============================================================================
 
 @WebRoute(GET, '/test-redir')
 def RequestTestRedirect(microWebSrv2, request) :
     request.Response.ReturnRedirect('/sd/chat.txt')
+
+# ============================================================================
+
+@WebRoute(GET, '/node-config', name='NodeConfig1/2')
+def RequestTestPost(microWebSrv2, request) :
+    content = """\
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Node Config 1/2</title>
+        </head>
+        <body>
+            <h2>LHVW Chat Node Configuration 1/2</h2>
+            User address: %s<br />
+            <form action="/test-post" method="post">
+                WIFI SSID: <input type="text" placeholder=%s name="SSID"><br />
+                WIFI Password:  <input type="text" placeholder=%s name="PASS"><br />
+                Node Mac:  <input type="text" placeholder=%s name="MAC"><br />
+                Node Name:  <input type="text" placeholder=%s name="NODENAME"><br />
+                Mesh Frequency:  <input type="text" placeholder=%s name="FREQ"><br />
+                904600000<br />
+                Mesh bandwidth:  <input type="text" placeholder=%s name="BAND"><br />
+                LoRa.BW_125KHZ<br />
+                Spreading Factor:  <input type="text" placeholder=%s name="SPRDFACT"><br />
+                7 is fastest, 12 is slow with longer range<br />
+                Mesh Key:  <input type="text" placeholder=%s name="KEY"><br />
+                112233<br />
+
+                <input type="submit" value="OK">
+            </form>
+        </body>
+    </html>
+    """ % (request.UserAddress[0], NODE_SSID, NODE_PASS, NODE_MAC, NODE_NAME, MESH_FREQ, MESH_BAND, MESH_SPRED, MESH_KEY)
+    request.Response.ReturnOk(content)
+
+# ------------------------------------------------------------------------
+
+@WebRoute(POST, '/node-config', name='NodeConfig2/2')
+def RequestTestPost(microWebSrv2, request) :
+    data = request.GetPostedURLEncodedForm()
+    try :
+        ssid = data['SSID']
+        passwrd = data['PASS']
+        mac = data['MAC']
+        node_name = data['NODENAME']
+        mesh_freq = data['FREQ']
+        mesh_band = data['BAND']
+        spread_fact = data['SPRDFACT']
+        key = data['KEY']
+
+        node_dict = {
+        'WIFI_SSID': str(ssid),
+        'WIFI_PASS': str(passwrd),
+        'NODE_MAC':  str(mac),
+        'NODE_NAME': str(node_name),
+        'MESH_FREQ': str(mesh_freq),
+        'MESH_BAND': str(mesh_band),
+        'SPREAD_FACT': str(spread_fact),
+        'MESH_KEY': str(key)
+        }
+
+    except :
+        request.Response.ReturnBadRequest()
+        return
+    try:
+        with open('/sd/www/node_config.txt', 'w') as f:
+            for key in node_dict:
+                f.write("%s, %s" % (key, node_dict[key]))
+                f.write('\r\n')
+            f.close()
+    except:
+        print("Failed")
+
+    content   = """\
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>POST 2/2</title>
+        </head>
+        <body>
+            <h2>MicroWebSrv2 - POST 2/2</h2>
+            Node config has been set<br />
+        </body>
+    </html>
+    """
+    request.Response.ReturnOk(content)
+
+
 
 # ============================================================================
 
@@ -226,6 +299,21 @@ def last_10_messages():
         f.close()
     last_messages = all_messages[-11:]
     return last_messages
+
+def create_node_config_dict():
+    node_config_dict = {}
+    try:
+        with open('/sd/www/node_config.txt') as f:
+            node_config_list = f.read().split('\r\n')
+            f.close()
+    except:
+        with open('/node_config.txt') as f:
+            node_config_list = f.read().split('\r\n')
+            f.close()
+    for i in range(len(node_config_list)-1):
+        temp_list = list(node_config_list[i].split(', '))
+        node_config_dict[temp_list[0]] = temp_list[1]
+    return node_config_dict
 
 def create_house_dict():
     house_dict = {}
@@ -641,6 +729,18 @@ except:
 
 # read config file, or set default values
 
+node_dict = create_node_config_dict()
+print(node_dict)
+
+NODE_SSID = node_dict['WIFI_SSID']
+NODE_PASS = node_dict['WIFI_PASS']
+NODE_MAC = node_dict['NODE_MAC']
+NODE_NAME = node_dict['NODE_NAME']
+MESH_FREQ = node_dict['MESH_FREQ']
+MESH_BAND = node_dict['MESH_BAND']
+MESH_SPRED = node_dict['SPREAD_FACT']
+MESH_KEY = node_dict['MESH_KEY']
+
 pymesh_config = PymeshConfig.read_config()
 
 
@@ -686,7 +786,7 @@ print("Current available memory after pymesh load: %d" % gc.mem_free())
 
 wlan= WLAN()
 wlan.deinit()
-wlan = WLAN(mode=WLAN.AP, ssid="RepeaterU", auth=(WLAN.WPA2, 'lhvwpass'), channel=11, antenna=WLAN.INT_ANT)
+wlan = WLAN(mode=WLAN.AP, ssid=NODE_SSID, auth=(WLAN.WPA2, NODE_PASS), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
 # if has_LTE == True:
@@ -848,6 +948,8 @@ pycom.rgbled(0x000A00)
 pyhtmlMod = MicroWebSrv2.LoadModule('PyhtmlTemplate')
 pyhtmlMod.ShowDebug = True
 pyhtmlMod.SetGlobalVar('TestVar', 12345)
+pyhtmlMod.SetGlobalVar('NodeName', NODE_NAME)
+
 
 # Loads the WebSockets module globally and configure it,
 wsMod = MicroWebSrv2.LoadModule('WebSockets')

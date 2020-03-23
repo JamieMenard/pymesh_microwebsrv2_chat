@@ -1,8 +1,8 @@
-WIFI SSID, JamiesHouse
-WIFI PASS, lhvwpass
-MAC, 1
-Node Name, 112LHR
-Mesh Frequency, 904600000
-Mesh bandwidth, LoRa.BW_125KHZ
-Spreading Factor, 7
-Mesh Key, 112233
+WIFI_SSID, Default
+WIFI_PASS, lhvwpass
+NODE_MAC, 1
+NODE_NAME, 112LHR
+MESH_FREQ, 904600000
+MESH_BAND, LoRa.BW_125KHZ
+SPREAD_FACT, 7
+MESH_KEY, 112233

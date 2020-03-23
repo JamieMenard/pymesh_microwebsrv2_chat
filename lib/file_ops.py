@@ -7,7 +7,7 @@ def sd_setup():
         os.mount(sd, '/sd')
         print("SD card mounted")
         # try:
-        #     os.remove('/sd/www/chat.txt')
+        #     os.remove('/sd/www/node_config.txt')
         # except:
         #     print('did not delete')
         try:
@@ -71,6 +71,24 @@ def sd_setup():
             print("WSChat now on SD card")
 
         try:
+            f = open('/sd/www/node_config_page.html', 'r')
+            print("Node Config is on SD card")
+            c = open('/flash/www/node_config_page.html', 'r')
+            count_of_f = len(f.read())
+            count_of_c = len(c.read())
+            f.close()
+            c.close()
+            print("Check if Node Config has changed")
+            if count_of_c != count_of_f:
+                os.remove('/sd/www/node_config_page.html')
+                copy('/flash/www/node_config_page.html', '/sd/www/node_config_page.html')
+                print("Copied new Node Config")
+
+        except:
+            copy('/flash/www/node_config_page.html', '/sd/www/node_config_page.html')
+            print("Node Config now on SD card")
+
+        try:
             f = open('/sd/www/index.html', 'r')
             c = open('/flash/www/index.html', 'r')
             count_of_f = len(f.read())
@@ -86,23 +104,6 @@ def sd_setup():
             copy('/flash/www/index.html', '/sd/www/index.html')
             print("Index now on SD card")
 
-        try:
-            f = open('/sd/www/node_config.html', 'r')
-            print("node_config is on SD card")
-            c = open('/flash/www/node_config.html', 'r')
-            count_of_f = len(f.read())
-            count_of_c = len(c.read())
-            f.close()
-            c.close()
-            print("Check if node_config has changed")
-            if count_of_c != count_of_f:
-                os.remove('/sd/www/node_config.html')
-                copy('/flash/www/node_config.html', '/sd/www/node_config.html')
-                print("Copied new node_config")
-
-        except:
-            copy('/flash/www/node_config.html', '/sd/www/node_config.html')
-            print("node_config now on SD card")
 
         try:
             f = open('/sd/www/style.css', 'r')
@@ -143,64 +144,18 @@ def sd_setup():
                 print("House List now on SD card")
 
         try:
-            print("check node_mac_mesh status")
-            f = open('/sd/lib/my_node_neighors.txt', 'r')
-            print("Node Mesh Mac list is on SD Card")
-            c = open('/flash/lib/my_node_neighors.txt', 'r')
-            count_of_f = len(f.read())
-            count_of_c = len(c.read())
-            f.close()
-            c.close()
-            print("Check if Node Mesh Mac List has changed")
-            if count_of_c > count_of_f:
-                os.remove('/sd/lib/my_node_neighors.txt')
-                copy('/flash/lib/my_node_neighors.txt', '/sd/lib/my_node_neighors.txt')
-                print("Updated node Mesh macs List from flash to SD")
-            elif count_of_c < count_of_f:
-                os.remove('/flash/lib/my_node_neighors.txt')
-                copy('/sd/lib/my_node_neighors.txt', '/flash/lib/my_node_neighors.txt')
-                print("Updated node mesh macs List from SD to flash")
-            else:
-                print("No changes made to house list.")
+            print("Check Node Config status")
+            f = open('/sd/www/node_config.txt', 'r')
+            print("Node Config is on SD Card")
 
         except:
             try:
                 os.mkdir('/sd/lib')
-                copy('/flash/lib/my_node_neighors.txt', '/sd/lib/my_node_neighors.txt')
-                print("House List now on SD card")
+                copy('/flash/node_config.txt', '/sd/www/node_config.txt')
+                print("Node config is now on SD card")
             except:
-                copy('/flash/lib/my_node_neighors.txt', '/sd/lib/my_node_neighors.txt')
-                print("House List now on SD card")
-
-        try:
-            print("check leader_mac_mesh status")
-            f = open('/sd/lib/leader_mac_mesh.txt', 'r')
-            print("Node Mesh Mac list is on SD Card")
-            c = open('/flash/lib/leader_mac_mesh.txt', 'r')
-            count_of_f = len(f.read())
-            count_of_c = len(c.read())
-            f.close()
-            c.close()
-            print("Check if Node Mesh Mac List has changed")
-            if count_of_c > count_of_f:
-                os.remove('/sd/lib/leader_mac_mesh.txt')
-                copy('/flash/lib/leader_mac_mesh.txt', '/sd/lib/leader_mac_mesh.txt')
-                print("Updated node Mesh macs List from flash to SD")
-            elif count_of_c < count_of_f:
-                os.remove('/flash/lib/leader_mac_mesh.txt')
-                copy('/sd/lib/leader_mac_mesh.txt', '/flash/lib/leader_mac_mesh.txt')
-                print("Updated node mesh macs List from SD to flash")
-            else:
-                print("No changes made to house list.")
-
-        except:
-            try:
-                os.mkdir('/sd/lib')
-                copy('/flash/lib/leader_mac_mesh.txt', '/sd/lib/leader_mac_mesh.txt')
-                print("House List now on SD card")
-            except:
-                copy('/flash/lib/leader_mac_mesh.txt', '/sd/lib/leader_mac_mesh.txt')
-                print("House List now on SD card")
+                copy('/flash/node_config.txt', '/sd/www/node_config.txt')
+                print("Node config is now on SD card")
 
     except:
         print("SD card not loaded, chat not saved")
