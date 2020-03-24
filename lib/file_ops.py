@@ -6,10 +6,10 @@ def sd_setup():
         sd = SD()
         os.mount(sd, '/sd')
         print("SD card mounted")
-        # try:
-        #     os.remove('/sd/pymesh_config.json')
-        # except:
-        #     print('did not delete')
+        try:
+            os.remove('/sd/www/leader_mesh_list.txt')
+        except:
+            print('did not delete')
         try:
             f = open('/sd/www/ack_log.txt', 'r')
             print("Already a ACK log")
@@ -148,13 +148,21 @@ def sd_setup():
             f = open('/sd/www/pymesh_config.json', 'r')
             f.close()
             print("Pymesh Config is on SD Card")
-            # os.remove('/flash/pymesh_config.json')
-            # copy('/sd/www/pymesh_config.json', '/flash/pymesh_config.json')
 
 
         except:
                 copy('/flash/pymesh_config.json', '/sd/www/pymesh_config.json')
                 print("Pymesh config is now on SD card")
+
+        try:
+            print("Check Leader Mesh list status")
+            f = open('/sd/www/leader_mesh_list.txt', 'r')
+            f.close()
+            print("Leader Mesh list is on SD Card")
+
+        except:
+            copy('/flash/lib/leader_mesh_list.txt', '/sd/www/leader_mesh_list.txt')
+            print("Leader Mesh list is now on SD card")
 
     except:
         print("SD card not loaded, chat not saved")
