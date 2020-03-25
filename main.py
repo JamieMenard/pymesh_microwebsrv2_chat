@@ -151,6 +151,9 @@ def RequestTestPost(microWebSrv2, request) :
             Node config has been set<br />
             Power Cycle Node for settings to take effect<br />
             Or go back to home to redo settings if you made a mistake <br />
+            <p>
+                Go home « <a href="/index.html">Home</a> »
+            </p>
         </body>
     </html>
     """
@@ -167,7 +170,11 @@ def OnWebSocketAccepted(microWebSrv2, webSocket) :
     print('   - Origin : %s'    % webSocket.Request.Origin)
     print("send node to leader")
     send_leader_hi(leader)
-    ask_for_mesh_macs(leader)
+    my_mac = pymesh.mesh.mesh.MAC
+    if my_mac == leader:
+        macs = leader_gets_own_mesh_macs()
+    else:
+        ask_for_mesh_macs(leader)
     # _thread.start_new_thread(first_time_set, ())
     # first_time_set()
     if webSocket.Request.Path.lower() == '/wschat' :
@@ -215,16 +222,21 @@ def WSJoinChat(webSocket) :
     addr = webSocket.Request.UserAddress
     my_mac = pymesh.mesh.mesh.MAC
     print("Ask leader for mac list")
-    try:
-        macs = RECEIVED_MAC_LIST
-    except:
-        time.sleep(5)
-        ask_for_mesh_macs(leader)
-        time.sleep(5)
+    if my_mac == leader:
+        macs = leader_gets_own_mesh_macs()
+    else:
         try:
             macs = RECEIVED_MAC_LIST
         except:
-            print("somethings locked up")
+            time.sleep(5)
+            ask_for_mesh_macs(leader)
+            time.sleep(5)
+            try:
+                macs = RECEIVED_MAC_LIST
+            except:
+                print("somethings locked up")
+                with _chatLock :
+                    webSocket.SendTextMessage('No nodes have joined chat, wait and refresh page')
 
     print("The current macs are %s" % macs)
     # houses_string = pop_mac_list()
@@ -262,24 +274,40 @@ def WSJoinChat(webSocket) :
 
 def OnWSChatTextMsg(webSocket, msg) :
     gc.collect()
-    addr = webSocket.Request.UserAddress
+    send_leader_hi(leader)
     my_mac = pymesh.mesh.mesh.MAC
-    try:
-        macs = RECEIVED_MAC_LIST
-    except:
-        time.sleep(5)
+    time.sleep(2)
+    print("1")
+    if my_mac == leader:
+        print("Will get macs from file")
+    else:
         ask_for_mesh_macs(leader)
-        time.sleep(5)
+    time.sleep(2)
+    print("3")
+    addr = webSocket.Request.UserAddress
+    if my_mac == leader:
+        macs = leader_gets_own_mesh_macs()
+    else:
         try:
             macs = RECEIVED_MAC_LIST
         except:
-            print("somethings locked up")
+            time.sleep(5)
+            ask_for_mesh_macs(leader)
+            time.sleep(5)
+            try:
+                macs = RECEIVED_MAC_LIST
+            except:
+                print("somethings locked up")
+                with _chatLock :
+                    webSocket.SendTextMessage('No nodes have joined chat, wait and refresh page')
     # new_msg = ('%s: %s' % (str(house), msg))
+    len_mac = (len(macs)-1)
     now_time = current_time()
     with _chatLock :
         for ws in _chatWebSockets :
+            self_node_msg = ("Sent to %s nodes: %s" % (len_mac, msg))
             #ws.SendTextMessage(': %s' % new_msg)
-            ws.SendTextMessage(str(msg))
+            ws.SendTextMessage(str(self_node_msg))
             gc.collect()
         # pymesh.send_mess('ff03::1', new_msg)
         for mac in macs:
@@ -363,6 +391,22 @@ def write_json_config_file(mac, freq, band, sprd, key):
     except:
         print("File didn't write")
 
+# def set_initial_node_mac_to_default():
+#     my_mac = str(pymesh.mesh.mesh.MAC)
+#     with open('/node_config.txt') as f:
+#         node_config_list_from_file = f.read().split('\r\n')
+#         f.close()
+#     node_config_list = node_config_list_from_file[:8]
+#     for i in range(len(node_config_list)):
+#         temp_list = list(node_config_list[i].split(', '))
+#         node_config_dict[temp_list[0]] = temp_list[1]
+#     node_config_dict['NODE_MAC'] = str(my_mac)
+#     with open('/node_config.txt', 'w') as f:
+#         for k in node_config_dict:
+#             f.write("%s, %s" % (k, node_config_dict[k]))
+#             f.write("\r\n")
+#         f.close()
+
 def create_node_config_dict():
     node_config_dict = {}
     try:
@@ -374,7 +418,6 @@ def create_node_config_dict():
             node_config_list_from_file = f.read().split('\r\n')
             f.close()
     node_config_list = node_config_list_from_file[:8]
-    print(node_config_list)
     for i in range(len(node_config_list)):
         temp_list = list(node_config_list[i].split(', '))
         node_config_dict[temp_list[0]] = temp_list[1]
@@ -524,7 +567,6 @@ def set_my_time(sending_mac):
         print("Mac address format wrong")
     else:
         now_time = utime.localtime()
-        print(str(now_time))
         msg = ("JM set time 01 %s" % str(now_time))
         time.sleep(1)
         pymesh.send_mess(sending_mac, str(msg))
@@ -573,7 +615,6 @@ def pop_mesh_pairs_list():
         time.sleep(1)
         mps = pymesh.mesh.get_mesh_pairs()
         time.sleep(2)
-        print(mps)
         if len(mps) != 0:
             have_mps = True
     return mps
@@ -656,40 +697,49 @@ def send_self_info(sending_mac):
 
 def send_leader_hi(leader):
     my_mac = str(pymesh.mesh.mesh.MAC)
-    print(my_mac)
-    print(leader)
     if my_mac == leader:
         print("Either this node is the leader or not connected to mesh, not saying hi")
     else:
         msg = ("JM add me %s" % my_mac)
         with _chatLock :
             pymesh.send_mess(leader, str(msg))
-            print("add me sent")
             time.sleep(2)
 
 
 def add_me_leader(sending_mac):
     print("Adding to mesh leader mac list")
     msg = make_message_status("Node Added")
-    with open('/sd/www/leader_mesh_list.txt', 'a') as f:
-        f.write(sending_mac)
-        f.write('\r\n')
+    with open('/sd/www/leader_mesh_list.txt') as f:
+        temp_mac_list = f.read().split('\r\n')
         f.close()
-    with _chatLock :
-        pymesh.send_mess(sending_mac, str(msg))
-        time.sleep(2)
+    if (sending_mac in temp_mac_list):
+        print("Node already in list")
+        with _chatLock :
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(2)
+    else:
+        with open('/sd/www/leader_mesh_list.txt', 'a') as f:
+            f.write(sending_mac)
+            f.write('\r\n')
+            f.close()
+        with _chatLock :
+            pymesh.send_mess(sending_mac, str(msg))
+            time.sleep(2)
+
+def leader_gets_own_mesh_macs():
+    with open('/sd/www/leader_mesh_list.txt') as f:
+        temp_mac_list = f.read().split('\r\n')
+        f.close()
+    mac_list = list( dict.fromkeys(temp_mac_list[:-1]) )
+    mac_list.append(my_mac)
+    return mac_list
 
 def ask_for_mesh_macs(leader):
-    print("in mesh macs")
     my_mac = str(pymesh.mesh.mesh.MAC)
     msg = ("JM send mml %s" % my_mac)
-    if leader == my_mac:
-        print("read from file")
-    else:
-        with _chatLock :
-            pymesh.send_mess(leader, str(msg))
-            time.sleep(1)
-            print("done mesh macs")
+    with _chatLock :
+        pymesh.send_mess(leader, str(msg))
+        time.sleep(1)
     time.sleep(5)
 
 def send_back_mml(sending_mac):
@@ -707,15 +757,11 @@ def send_back_mml(sending_mac):
 
 def save_mml(msg):
     mac_string = msg[1:-1]
-
-    print(mac_string)
     # temp_mac_list = mac_string.split(", ")
     temp_string = mac_string.strip("'")
     temp_mac_list = temp_string.split("', '")
-    print("this is the split list %s" % temp_mac_list)
     mac_list = []
     mac_list = [int(i) for i in temp_mac_list]
-    print(mac_list)
     return mac_list
 
 def new_message_cb(rcv_ip, rcv_port, rcv_data):
@@ -800,20 +846,19 @@ gc.enable()
 print("Current available memory: %d" % gc.mem_free())
 pycom.heartbeat(False)
 
+
 file_ops.sd_setup()
-try:
-    house_dict = create_house_dict()
-except:
-    print("There's no SD card, WebAP won't work")
+# try:
+#     house_dict = create_house_dict()
+# except:
+#     print("There's no SD card, WebAP won't work")
 
 # read config file, or set default values
 
 node_dict = create_node_config_dict()
-print(node_dict)
 
 NODE_SSID = node_dict['WIFI_SSID']
 NODE_PASS = node_dict['WIFI_PASS']
-NODE_MAC = node_dict['NODE_MAC']
 NODE_NAME = node_dict['NODE_NAME']
 MESH_FREQ = node_dict['MESH_FREQ']
 MESH_BAND = node_dict['MESH_BAND']
@@ -850,6 +895,9 @@ if pysense_s == False and pytrack_s == False:
     print("EXP 3.1")
 
 mac = pymesh.mac()
+
+node_dict['NODE_MAC'] = mac
+NODE_MAC = node_dict['NODE_MAC']
 # if mac > 10:
 #     pymesh.end_device(True)
 # if mac == 20:
@@ -1044,13 +1092,12 @@ mws2.NotFoundURL = '/'
 mws2.StartManaged()
 node_state = pymesh.status_str()
 print("Node state : %s" % str(node_state))
-print(node_state[:6])
 leader = find_leader()
 print("Current available memory after wifi ap loads: %d" % gc.mem_free())
 
 if mac != leader:
     send_leader_hi(leader)
-    print("sending hi")
+    print("Sending hi")
 
 # Main program loop until keyboard interrupt,
 try :

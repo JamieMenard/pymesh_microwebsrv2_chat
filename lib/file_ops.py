@@ -6,10 +6,10 @@ def sd_setup():
         sd = SD()
         os.mount(sd, '/sd')
         print("SD card mounted")
-        try:
-            os.remove('/sd/www/leader_mesh_list.txt')
-        except:
-            print('did not delete')
+        # try:
+        #     os.remove('/sd/www/leader_mesh_list.txt')
+        # except:
+        #     print('did not delete')
         try:
             f = open('/sd/www/ack_log.txt', 'r')
             print("Already a ACK log")
@@ -136,23 +136,23 @@ def sd_setup():
 
         except:
             try:
-                os.mkdir('/sd/lib')
+                os.mkdir('/sd/www')
                 copy('/flash/node_config.txt', '/sd/www/node_config.txt')
                 print("Node config is now on SD card")
             except:
                 copy('/flash/node_config.txt', '/sd/www/node_config.txt')
                 print("Node config is now on SD card")
 
-        try:
-            print("Check Pymesh Config status")
-            f = open('/sd/www/pymesh_config.json', 'r')
-            f.close()
-            print("Pymesh Config is on SD Card")
-
-
-        except:
-                copy('/flash/pymesh_config.json', '/sd/www/pymesh_config.json')
-                print("Pymesh config is now on SD card")
+        # try:
+        #     print("Check Pymesh Config status")
+        #     f = open('/sd/www/pymesh_config.json', 'r')
+        #     f.close()
+        #     print("Pymesh Config is on SD Card")
+        #
+        #
+        # except:
+        #         copy('/flash/pymesh_config.json', '/sd/www/pymesh_config.json')
+        #         print("Pymesh config is now on SD card")
 
         try:
             print("Check Leader Mesh list status")
