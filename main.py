@@ -10,9 +10,11 @@ from pycoproc import Pycoproc
 from time          import sleep
 from _thread       import allocate_lock
 
+
 import gc
 import machine
 import file_ops
+import lte_funcs as ltef
 import os
 import pycom
 import socket
@@ -28,19 +30,13 @@ import uos
 from pymesh_config import PymeshConfig
 # except:
 #     from _pymesh_config import PymeshConfig
-try:
-    from network import LTE
-    has_LTE = True
-except:
-    has_LTE = False
-    print("Not a FIPY")
 
 # try:
 from pymesh import Pymesh
 # except:
 #     from _pymesh import Pymesh
 
-lh_mesh_version = "1.1.0"
+lh_mesh_version = "1.1.1"
 
 
 # ============================================================================
@@ -274,16 +270,18 @@ def WSJoinChat(webSocket) :
 
 def OnWSChatTextMsg(webSocket, msg) :
     gc.collect()
+    if msg[:11] == ("JM send SMS"):
+        print("You attempted to send a txt")
+    else:
+        print("NOthing to send")
     send_leader_hi(leader)
     my_mac = pymesh.mesh.mesh.MAC
     time.sleep(2)
-    print("1")
     if my_mac == leader:
         print("Will get macs from file")
     else:
         ask_for_mesh_macs(leader)
     time.sleep(2)
-    print("3")
     addr = webSocket.Request.UserAddress
     if my_mac == leader:
         macs = leader_gets_own_mesh_macs()
@@ -918,157 +916,55 @@ wlan.deinit()
 wlan = WLAN(mode=WLAN.AP, ssid=NODE_SSID, auth=(WLAN.WPA2, NODE_PASS), channel=11, antenna=WLAN.INT_ANT)
 wlan.ifconfig(id=1, config=('192.168.1.1', '255.255.255.0', '192.168.1.1', '8.8.8.8'))
 
-# if has_LTE == True:
-#     print("instantiate LTE object")
-#     lte = LTE()
-#     print("delay 4 secs")
-#     time.sleep(4.0)
-#
-#     if lte.isattached():
-#         try:
-#             print("LTE was already attached, disconnecting...")
-#             if lte.isconnected():
-#                 print("disconnect")
-#                 lte.disconnect()
-#         except:
-#             print("Exception during disconnect")
-#
-#         try:
-#             if lte.isattached():
-#                 print("detach")
-#                 lte.dettach()
-#         except:
-#             print("Exception during dettach")
-#
-#         try:
-#             print("resetting modem...")
-#             lte.reset()
-#         except:
-#             print("Exception during reset")
-#
-#         print("delay 5 secs")
-#         time.sleep(5.0)
-#
-#     # enable network registration and location information, unsolicited result code
-#     at('AT+CEREG=2')
-#
-#     # print("full functionality level")
-#     at('AT+CFUN=1')
-#     time.sleep(1.0)
-#
-#     # using Hologram SIM
-#     at('AT+CGDCONT=1,"IP","hologram"')
-#
-#     print("attempt to attach cell modem to base station...")
-#     # lte.attach()  # do not use attach with custom init for Hologram SIM
-#
-#     at("ATI")
-#     time.sleep(2.0)
-#
-#     i = 0
-#     while lte.isattached() == False:
-#         # get EPS Network Registration Status:
-#         # +CEREG: <stat>[,[<tac>],[<ci>],[<AcT>]]
-#         # <tac> values:
-#         # 0 - not registered
-#         # 1 - registered, home network
-#         # 2 - not registered, but searching...
-#         # 3 - registration denied
-#         # 4 - unknown (out of E-UTRAN coverage)
-#         # 5 - registered, roaming
-#         r = at('AT+CEREG?')
-#         try:
-#             r0 = r[0]  # +CREG: 2,<tac>
-#             r0x = r0.split(',')     # ['+CREG: 2',<tac>]
-#             tac = int(r0x[1])       # 0..5
-#             print("tac={}".format(tac))
-#         except IndexError:
-#             tac = 0
-#             print("Index Error!!!")
-#
-#         # get signal strength
-#         # +CSQ: <rssi>,<ber>
-#         # <rssi>: 0..31, 99-unknown
-#         r = at('AT+CSQ')
-#
-#         # extended error report
-#         # r = at('AT+CEER')
-#
-#         # if lte.isattached():
-#         #    print("Modem attached (isattached() function worked)!!!")
-#         #    break
-#
-#         # if (tac==1) or (tac==5):
-#         #    print("Modem attached!!!")
-#         #    break
-#
-#         i = i + 5
-#         print("not attached: {} secs".format(i))
-#
-#         if (tac != 0):
-#             blink(BLUE, tac)
-#         else:
-#             blink(RED, 1)
-#
-#         time.sleep(5)
-#     time.sleep(60)
-#     print("set mode to text")
-#     at('AT+CMGF=1')
-#     print("set to check messages on sim")
-#     at('AT+CPMS="SM", "SM", "SM"')
-#     print("check message at 2")
-#     try:
-#         at('AT+CMGL="all"')
-#     except:
-#         print("no message")
-#
-#     # time.sleep(.5)
-#     # at('AT+CMGS="15084103870"\rWorking\0x1a')
-#     # print("sent!")
-#
-#     at('AT+CEREG?')
-#     # print("Attempt to connect")
-#     # try:
-#     #     lte.connect()
-#     #     i = 0
-#     #     while not lte.isconnected():
-#     #         i = i + 1
-#     #         print("not connected: {}".format(i))
-#     #         blink(GREEN, 1)
-#     #         time.sleep(1.0)
-#     #
-#     #     print("connected!!!")
-#     #     pycom.rgbled(BLUE)
-#     #
-#     # except:
-#     #     print("yeah, that broke")
-#
-#     def wait_for_200_seconds():
-#         for i in range(120):
-#             print(i)
-#             time.sleep(1)
-#         lte.disconnect()
-#         try:
-#             at('AT+CMGL="all"')
-#         except:
-#             print("no message")
-#         lte.dettach()
-#         print("disconnect")
-#         for i in range(10):
-#             blink(YELLOW,1)
-#             time.sleep(1.0)
-#
-#     _thread.start_new_thread(wait_for_200_seconds, ())
-#
-#
-#
-#
-#     # end of test, Red LED
-#     print("end of test")
-
-
-
 print("AP setting up");
+
+
+if uos.uname().sysname == 'FiPy':
+    try:
+        lte_comms = ltef.LteComms()
+        print("LTE communication being setup")
+        time.sleep(5)
+    except:
+        print('still broken')
+
+    try:
+        _thread.start_new_thread(lte_comms.attach_LTE, ())
+        time.sleep(60)
+    except:
+        print("Not a fipy")
+
+    try:
+        lte_comms.send_sms(19254876005, "From Jamie: Message me if you get this, try 2, cuz not sure if worked")
+    except:
+        print("sending sms broke")
+
+    # try:
+    #     _thread.start_new_thread(lte_comms.connect_lte_data, ())
+    #     time.sleep(20)
+    # except:
+    #     print("Couldn't connect to LTE data")
+
+    # try:
+    #     lte_comms.scrape_webpage('www.google.com')
+    # except:
+    #     print("webpage scrape failed")
+
+    # try:
+    #     lte_comms.disconnect_LTE()
+    # except:
+    #     print("Couldn't disconnect from LTE")
+    #
+    # try:
+    #     lte_comms.unattach_lte()
+    # except:
+    #     print("Couldn't disconnect from LTE")
+else:
+    print("Not a fipy")
+
+
+
+
+
 # first_time_set()
 pycom.rgbled(0x000A00)
 
@@ -1095,9 +991,14 @@ print("Node state : %s" % str(node_state))
 leader = find_leader()
 print("Current available memory after wifi ap loads: %d" % gc.mem_free())
 
-if mac != leader:
-    send_leader_hi(leader)
-    print("Sending hi")
+def wake_up_leader_to_add():
+    if mac != leader:
+        send_leader_hi(leader)
+        time.sleep(5)
+        send_leader_hi(leader)
+        print("Sending Hi to leader")
+
+_thread.start_new_thread(wake_up_leader_to_add, ())
 
 # Main program loop until keyboard interrupt,
 try :
