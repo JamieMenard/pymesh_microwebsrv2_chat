@@ -7,6 +7,7 @@
 # available at https://www.pycom.io/opensource/licensing
 
 import time
+import machine
 from machine import Timer
 # from struct import *
 import _thread
@@ -91,8 +92,11 @@ class MeshInterface:
 
                 if time.time() - self.single_leader_ts > 180:
                     print("Single Leader, just reset")
+                    # machine.reset()
                     if self.sleep_function:
                         self.sleep_function(1)
+                    else:
+                        machine.reset()
             else:
                 # print("Not Single Leader", self.mesh.mesh.state, self.mesh.mesh.mesh.single())
                 self.single_leader_ts = 0

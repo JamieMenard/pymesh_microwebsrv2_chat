@@ -36,7 +36,7 @@ from pymesh import Pymesh
 # except:
 #     from _pymesh import Pymesh
 
-lh_mesh_version = "1.1.1"
+lh_mesh_version = "1.1.2"
 
 
 # ============================================================================
@@ -158,6 +158,174 @@ def RequestTestPost(microWebSrv2, request) :
 
 
 # ============================================================================
+# ============================================================================
+
+@WebRoute(GET, '/node-diag', name='NodeDiag1/2')
+def RequestTestPost(microWebSrv2, request) :
+    NODE_STATE = pymesh.status_str()
+    try:
+        NODE_MML_LEN = len(RECEIVED_MAC_LIST)
+        NODE_MML = RECEIVED_MAC_LIST
+        # leader = find_leader()
+    except:
+        NODE_MML_LEN = "No Mesh list, not received from leader"
+        NODE_MML = "No Mesh list, not received from leader"
+
+    content = """\
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Node Diagnostic 1/2</title>
+            <link rel="stylesheet" href="style.css" />
+        </head>
+        <body>
+            <h2>LHVW Chat Node Diagnostic 1/2</h2>
+            <form action="/node-diag" method="post">
+                Node's current state:<br />
+                %s <br />
+                <br />
+                Typically will be Role 3 (router) or Role 4 (leader), <br />
+                Role 0 (deattached) or Role 1 (single leader) implies a problem with the mesh.<br />
+                Power cycle the node after a couple minutes.<br />
+                <br />
+                Mac address of this node. Use this for the direct message commands below: %s. <br />
+                <br />
+                Number of nodes connected to mesh: %s. <br />
+                <br />
+                List of node mac addresses: <br >
+                %s <br />
+                <br />
+                If the two lines above say "No mesh list" send the "JM send mml 'my_mac'" command below to the leader.<br />
+                <br />
+                <br />
+                Leader Mac address: %s <br />
+                <br />
+                <br />
+                Node mac address for sending a direct message: <br />
+                <input type="text" name="N_MAC" size="50"><br />
+                Message for node: <br />
+                <input type="text" name="N_MSG" size="100"><br />
+                <br />
+                <input type="submit" value="Send Message" size="30">
+
+                <h2>"JM Messages"</h2>
+                A series of commands that can be sent to nodes for more info.<br />
+                Use the address on the "my mac address" line above as the "my_mac" below.
+                <ul>
+                    <li>"JM send self 'my mac'"</li>
+                    <li>This request the self info a node, role, signal strength, neighbors, etc</li>
+                    <br />
+                    <li>"JM set time (2020, 3, 27, 10, 53, 00, 00, 00) 'my mac'"</li>
+                    <li>This will tell a node to sync it's RTC to the time sent.<br />
+                    It requires a very specific format or else won't work <br />
+                    "JM set time (year, month, date, hour, minutes, 00, 00, 00) 'my_mac'"<br />
+                    "hours" are in 24 hour clock format, 7pm is '19' </li>
+                    <br />
+                    <li>"JM how set 'my mac'"</li>
+                    <li>Will ask a node what it's clock is set to</li>
+                    <br />
+                    <li>"JM send name 'my mac'"</li>
+                    <li>Asks a node to send it's 'name' if it has one. <br />
+                     Makes it easier to know which node/perso to send messages to.n</li>
+                     <br />
+                    <li>"JM RESET"</li >
+                    <li>Reboots remote node.</li>
+                    <br />
+                    <li>"JM set my time 'my mac'"</li>
+                    <li>"JM set your time"</li>
+                    <li>The two above command either your node or a remote node to<br />
+                    message the node with Mac address "1" and request it update their time.<br />
+                    This only works if take a easily accessible node, change the mac to 1,<br />
+                    and keep the time constantly updated on it.</li>
+                    <br />
+                    <li>"JM send mml 'my mac'"</li>
+                    <li>Requests the leader to send the lastest list of the nodes on the<br />
+                    mesh's macs</li>
+                    <br />
+                    <li>"JM add me 'my mac'"</li>
+                    <li>Sends your mac to the leader node to be added to the mml, <br />
+                    in case it didn't happen automagically.</li>
+                    <br />
+                    <li>"JM how set 'my mac'"</li>
+                    <li>Will ask a node what it's clock is set to</li>
+                    <br />
+                    <li>"JM send svw 'my mac'"</li>
+                    <li>Request software version of a node.</li>
+                    <br />
+                    <li>The next set of messages can be sent to any node, but<br />
+                    not all of the nodes have the sensors to send back the data.</li>
+                    <br />
+                    <li>"JM batt level 'my mac'"</li>
+                    <li>Battery level</li>
+                    <br />
+                    <li>"JM send GPS 'my mac'"</li>
+                    <li>GPS</li>
+                    <br />
+                    <li>"JM send temp 'my mac'"</li>
+                    <li>Sends temperature inside the enclosure.</li>
+                    <br />
+                    <li>"JM send baro 'my mac'"</li>
+                    <li>Sends barometric pressure, usually moot if it's in a <br />
+                    container.</li>
+                </ul>
+                <p>
+                    Go home « <a href="/index.html">Home</a> »
+                </p>
+            </form>
+        </body>
+    </html>
+    """ % (NODE_STATE, NODE_MAC, NODE_MML_LEN, NODE_MML, leader)
+    request.Response.ReturnOk(content)
+
+# ------------------------------------------------------------------------
+
+@WebRoute(POST, '/node-diag', name='NodeDiag2/2')
+def RequestTestPost(microWebSrv2, request) :
+    data = request.GetPostedURLEncodedForm()
+    try :
+        print("sending msg")
+        if data['N_MAC'] != 0 and data['N_MSG'] != 0:
+            status_msg = ("Sending message ''%s' to %s mac, check status or ack log for response." % (data['N_MAC'], data['N_MSG']))
+            with _chatLock:
+                time.sleep(1)
+                pymesh.send_mess(str(data['N_MAC']), str(data['N_MSG']))
+                time.sleep(1)
+        else:
+            status_msg = "Nothing to send"
+    except:
+        print("Something went wrong in msg format")
+
+    content   = """\
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>POST Diagnostic 2/2</title>
+        </head>
+        <body>
+            <h2>MicroWebSrv2 - POST 2/2</h2>
+            %s<br />
+            <p>
+                Go back to send another message « <a href="/node-diag">Node Diagnostic</a> »
+            </p>
+            <p>
+                Go back to the status log and refresh to see response: « <a href="/status_log.txt">Status Log</a> »
+            </p>
+            <p>
+                Or go to the ack log and refresh to see if message was received: « <a href="/status_log.txt">Status Log</a> »
+            </p>
+            Or go back to home if done <br />
+            <p>
+                Go home « <a href="/index.html">Home</a> »
+            </p>
+        </body>
+    </html>
+    """ % (status_msg)
+    request.Response.ReturnOk(content)
+
+
+
+# ============================================================================
+
 
 def OnWebSocketAccepted(microWebSrv2, webSocket) :
     print('Example WebSocket accepted:')
@@ -762,6 +930,11 @@ def save_mml(msg):
     mac_list = [int(i) for i in temp_mac_list]
     return mac_list
 
+def send_name(sending_mac):
+    with _chatLock :
+        pymesh.send_mess(sending_mac, str(NODE_NAME))
+        time.sleep(1)
+
 def new_message_cb(rcv_ip, rcv_port, rcv_data):
     ''' callback triggered when a new packet arrived '''
     print('Incoming %d bytes from %s (port %d):' %
@@ -821,6 +994,9 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
             msg = msg[15:]
             global RECEIVED_MAC_LIST
             RECEIVED_MAC_LIST = save_mml(msg)
+        elif msg[:12] == "JM send name":
+            sending_mac = msg[13:]
+            send_name(sending_mac)
 
 
     else:
@@ -907,9 +1083,8 @@ while not pymesh.is_connected():
     print(pymesh.status_str())
     time.sleep(3)
 
-
-
 print("Current available memory after pymesh load: %d" % gc.mem_free())
+gc.collect()
 
 wlan= WLAN()
 wlan.deinit()
@@ -961,13 +1136,9 @@ if uos.uname().sysname == 'FiPy':
 else:
     print("Not a fipy")
 
-
-
-
-
 # first_time_set()
 pycom.rgbled(0x000A00)
-
+gc.collect()
 # Loads the WebSockets module globally and configure it,
 wsMod = MicroWebSrv2.LoadModule('WebSockets')
 wsMod.OnWebSocketAccepted = OnWebSocketAccepted

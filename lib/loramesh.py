@@ -181,11 +181,11 @@ class Loramesh:
         """ Sets the LED according to the Thread role """
         if self.state == STATE_LEADER and self.mesh.single():
             pycom.rgbled(0x000A0A)
-            time.sleep(.5)
+            time.sleep(1)
             pycom.rgbled(0)
         elif self.state == STATE_DETACHED:
             pycom.rgbled(0x0A0000)
-            time.sleep(.5)
+            time.sleep(1)
             pycom.rgbled(0)
         else:
             do_nothing = "yes"
