@@ -12,23 +12,35 @@ def sd_setup():
         #     print('did not delete')
         try:
             f = open('/sd/www/ack_log.txt', 'r')
-            print("Already a ACK log")
+            print("Already a ACK log, trimmed to last 100 ACKs")
+            acks = f.readlines()
             f.close()
+            os.remove('/sd/www/ack_log.txt')
+            n = open('/sd/www/ack_log.txt', 'w+')
+            for i in acks[-50:]:
+                n.write(i)
+            n.close()
         except:
             try:
                 os.mkdir('/sd/www')
                 f = open('/sd/www/ack_log.txt', 'w+')
                 f.write("ACK log:\n")
             except:
-                f = open('/sd/www/ACK_log.txt', 'w+')
+                f = open('/sd/www/ack_log.txt', 'w+')
                 f.write("ACK log:\n")
             print("ACK Log created")
         f.close()
 
         try:
             f = open('/sd/www/status_log.txt', 'r')
-            print("Already a status log")
+            print("Already a status log, trimmed to last 100 entries.")
+            status = f.readlines()
             f.close()
+            os.remove('/sd/www/status_log.txt')
+            n = open('/sd/www/status_log.txt', 'w+')
+            for i in status[-50:]:
+                n.write(i)
+            n.close()
         except:
             try:
                 os.mkdir('/sd/www')
@@ -42,8 +54,14 @@ def sd_setup():
 
         try:
             f = open('/sd/www/chat.txt', 'r')
-            print("Already a chat log")
+            print("Already a chat log, trimmed to last 100 entries.")
+            chats = f.readlines()
             f.close()
+            os.remove('/sd/www/chat.txt')
+            n = open('/sd/www/chat.txt', 'w+')
+            for i in chats[-50:]:
+                n.write(i)
+            n.close()
         except:
             try:
                 os.mkdir('/sd/www')
@@ -97,36 +115,6 @@ def sd_setup():
         except:
             copy('/flash/www/style.css', '/sd/www/style.css')
             print("Style now on SD card")
-
-        try:
-            print("check house status")
-            f = open('/sd/lib/houses.txt', 'r')
-            print("House list is on SD Card")
-            c = open('/flash/lib/houses.txt', 'r')
-            count_of_f = len(f.read())
-            count_of_c = len(c.read())
-            f.close()
-            c.close()
-            print("Check if House List has changed")
-            if count_of_c > count_of_f:
-                os.remove('/sd/lib/houses.txt')
-                copy('/flash/lib/houses.txt', '/sd/lib/houses.txt')
-                print("Updated House List from flash to SD")
-            elif count_of_c < count_of_f:
-                os.remove('/flash/lib/houses.txt')
-                copy('/sd/lib/houses.txt', '/flash/lib/houses.txt')
-                print("Updated House List from SD to flash")
-            else:
-                print("No changes made to house list.")
-
-        except:
-            try:
-                os.mkdir('/sd/lib')
-                copy('/flash/lib/houses.txt', '/sd/lib/houses.txt')
-                print("House List now on SD card")
-            except:
-                copy('/flash/lib/houses.txt', '/sd/lib/houses.txt')
-                print("House List now on SD card")
 
         try:
             print("Check Node Config status")

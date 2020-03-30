@@ -283,7 +283,7 @@ class Cli:
             sys.print_exception(e)
         finally:
             print('cli finally')
-            self.sleep(0)
+            self.sleep()
 
     def new_br_message_cb(self, rcv_ip, rcv_port, rcv_data, dest_ip, dest_port):
         ''' callback triggered when a new packet arrived for the current Border Router,
