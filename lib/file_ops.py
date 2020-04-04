@@ -152,6 +152,27 @@ def sd_setup():
             copy('/flash/lib/leader_mesh_list.txt', '/sd/www/leader_mesh_list.txt')
             print("Leader Mesh list is now on SD card")
 
+        try:
+            f = open('/sd/www/sms.txt', 'r')
+            print("Already a SMS log, trimmed to last 100 SMSs")
+            sms = f.readlines()
+            f.close()
+            os.remove('/sd/www/sms.txt')
+            n = open('/sd/www/sms.txt', 'w+')
+            for i in sms[-50:]:
+                n.write(i)
+            n.close()
+        except:
+            try:
+                os.mkdir('/sd/www')
+                f = open('/sd/www/sms.txt', 'w+')
+                f.write("SMS log:\n")
+            except:
+                f = open('/sd/www/sms.txt', 'w+')
+                f.write("SMS log:\n")
+            print("SMS Log created")
+        f.close()
+
     except:
         print("SD card not loaded, chat not saved")
 

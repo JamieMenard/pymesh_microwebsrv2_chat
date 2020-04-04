@@ -15,7 +15,8 @@ class LteComms:
             time.sleep(4)
         except:
             print("initialize LTE object?")
-
+        self.lte.reset()
+        time.sleep(4)
         print("delay 4 secs")
 
 
@@ -27,7 +28,7 @@ class LteComms:
         return r
 
     def attach_LTE(self):
-        time.sleep(4.0)
+        time.sleep(10.0)
 
         if self.lte.isattached():
             try:
@@ -109,9 +110,11 @@ class LteComms:
 
             i = i + 5
             print("not attached: {} secs".format(i))
-            while self.lte.isattached():
-                continue
-            print("Modem not attached")
+
+        # while self.lte.isattached():
+        #     # self.receive_and_forward_to_chat()
+        #     continue
+        # print("Modem not attached")
 
 
     def connect_lte_data(self):
@@ -146,33 +149,48 @@ class LteComms:
         # this will somehow have to be connected to the chat with a JM msg1
         print("set mode to text")
         self.at('AT+CMGF=1')
-        print("set to check messages on sim")
-        self.at('AT+CPMS="SM", "SM", "SM"')
         time.sleep(.5)
         # msg = ('AT+CMGS="%s"\r%s\0x1a' % (number, msg))
-        # print(msg)
-        print('sendin an sms', end=' '); ans=lte.send_at_cmd(('AT+SQNSMSSEND="%s", "%s"' % (number, msg))).split('\r\n'); print(ans)
+        # print(('ATTB+SQNSMSSEND="%s", "%s"' % (number, msg)))
+        print('sendin an sms', end=' '); ans=self.lte.send_at_cmd(('AT+SQNSMSSEND="%s", "%s"' % (number, msg))).split('\r\n'); print(ans)
         # self.at(msg)
         time.sleep(4)
         print("sent!")
 
     def receive_and_forward_to_chat(self):
+        time.sleep(60)
         # this will somehow have to be connected to the chat with a JM msg1
         print("set mode to text")
         self.at('AT+CMGF=1')
         print("set to check messages on sim")
         self.at('AT+CPMS="SM", "SM", "SM"')
-        try:
-            msg_list =self.at('AT+CMGL="REC UNREAD"')
-        except:
-            print("no message")
-        parsed_msg_list = msg_parse(msg_list)
-        # send parsed_msg_list to CHAT
+        while self.lte.isattached():
+            try:
+                msg_list =self.at('AT+CMGL="REC UNREAD"')
+            except:
+                print("no message")
+            if len(msg_list) > 2:
+                parsed_msg_list = self.msg_parse(msg_list)
+                print("Writing to SMS log")
+                f = open('/sd/www/sms.txt', 'a+')
+                for i in range(len(parsed_msg_list)):
+                    f.write(str(parsed_msg_list[i]))
+                    f.write('\r\n')
+                f.close()
+            # Cuz apparently you need to clean out the sim card, it only holds 10 msgs
+            self.at('AT+CMGD=1,4')
+            time.sleep(60)
 
     def msg_parse(self, msg_list):
-        print("do things to fix the message list for sending")
-        print(msg_list)
-        parsed_msg_list = msg_list
+        parsed_msg_list = []
+        msg_list_string = "".join(msg_list)
+        split_msg_list = msg_list_string.split('+CMGL:')
+        for i in range(len(split_msg_list)):
+            temp_string = str(split_msg_list[i])
+            if temp_string[-2:] == 'OK':
+                parsed_msg_list.append(temp_string[:-2])
+            else:
+                parsed_msg_list.append(temp_string)
         return parsed_msg_list
 
     def disconnect_LTE(self):
@@ -183,5 +201,13 @@ class LteComms:
     def unattach_lte(self):
         self.lte.detach(reset=True)
         print("LTE modem deattached")
+
+    def signal_strength(self):
+        self.at('AT+CSQ')
+
+    def check_read_sms(self):
+        self.at('AT+CMGF=1')
+        msg_list =self.at('AT+CMGL="ALL"')
+        print(msg_list)
 
 

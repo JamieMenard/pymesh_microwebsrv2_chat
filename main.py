@@ -37,7 +37,7 @@ from pymesh import Pymesh
 # except:
 #     from _pymesh import Pymesh
 
-lh_mesh_version = "1.1.3"
+lh_mesh_version = "1.1.4"
 
 
 # ============================================================================
@@ -48,13 +48,121 @@ def RequestTestRedirect(microWebSrv2, request) :
 
 # ============================================================================
 
+@WebRoute(GET, '/comms', name='Comms1/2')
+def RequestTestPost(microWebSrv2, request) :
+    with open('/sd/www/sms.txt', 'r') as f:
+        sms_temp = f.read().split('\r\n')
+        f.close()
+
+    SMS = [string for string in sms_temp if string != ""]
+    print(SMS)
+    SMS = SMS[-5:]
+    print(SMS)
+    try:
+        sms1 = SMS[0]
+        print("SMS 0: %s" % SMS[0])
+    except:
+        sms1 = ' '
+    try:
+        sms2 = SMS[1]
+    except:
+        sms2 = ' '
+    try:
+        sms3 = SMS[2]
+    except:
+        sms3 = ' '
+    try:
+        sms4 = SMS[3]
+    except:
+        sms4 = ' '
+    try:
+        sms5 = SMS[4]
+    except:
+        sms5 = ' '
+
+    content = """\
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Comms 1/2</title>
+            <link rel="stylesheet" href="style.css" />
+        </head>
+
+        <body>
+            <h2>LHVW Comms Page 1/2</h2>
+            <br />
+            <form action="/comms" method="post">
+                Add html for sennding messages to external chat rooms, SMS, <br />
+                and for sending webpage scrape requests to BR and LTE<br />
+                Will need methods for finding which nodes are BR or LTE<br />
+                Then 4 input fields for mac/sms and mac/br_msg (for ext chat)<br />
+                %s
+                SMS Mac: <input type="text" name="LTEMAC"><br />
+                SMS Phone Number: <input type="text" name="SMSNUM"><br />
+                SMS Message:  <input type="text" name="SMSMSG"><br />
+
+                <br />
+                <input type="submit" value="Submit changes" size="30">
+                <br />
+                <br />
+                Last 5 SMS messages will show if this node has LTE:
+                %s<br />
+                %s<br />
+                %s<br />
+                %s<br />
+                %s<br />
+
+
+    </html>
+    """ % (NODE_NAME, sms1, sms2, sms3, sms4, sms5)
+    request.Response.ReturnOk(content)
+
+# ------------------------------------------------------------------------
+
+@WebRoute(POST, '/comms', name='Comms2/2')
+def RequestTestPost(microWebSrv2, request) :
+    data = request.GetPostedURLEncodedForm()
+    print("This space to send SMS and BR requests")
+    if data['SMSNUM'] != 0 and data['SMSMSG'] != 0:
+        try:
+            lte_funcs.send_sms(data['SMSNUM'], data['SMSMSG'])
+        except:
+            msg = ("JM send sms %s %s" % (data['SMSNUM'], data['SMSMSG']))
+            pymesh.send_mess(data['LTEMAC'], str(msg))
+    else:
+        print("No message to send")
+
+    content   = """\
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Comms 2/2</title>
+            <link rel="stylesheet" href="style.css" />
+        </head>
+        <body>
+            <h2>Comms - POST 2/2</h2>
+            Need to figure out how to display received SMS or external chat<br />
+            PHow to display webpage scrape<br />
+            Or how to return error if things don't work.<br />
+            <p>
+                Go home « <a href="/index.html">Home</a> »
+            </p>
+        </body>
+    </html>
+    """
+    request.Response.ReturnOk(content)
+
+# ============================================================================
+
 @WebRoute(GET, '/node-config', name='NodeConfig1/2')
 def RequestTestPost(microWebSrv2, request) :
+    NODE_TIME = utime.localtime()
     content = """\
     <!DOCTYPE html>
     <html>
         <head>
             <title>Node Config 1/2</title>
+            <link rel="stylesheet" href="style.css" />
         </head>
 
         <body>
@@ -90,7 +198,8 @@ def RequestTestPost(microWebSrv2, request) :
                 <input type="submit" value="Submit changes" size="30">
                 <br />
                 <br />
-
+                Current node RTC time:<br />
+                %s<br />
                 <input id="DTIME" type="text" name="TIME" size="50"><br />
                 <br />
                 <br />
@@ -112,7 +221,7 @@ def RequestTestPost(microWebSrv2, request) :
         </script>
 
     </html>
-    """ % (request.UserAddress[0], NODE_SSID, NODE_PASS, NODE_MAC, NODE_NAME, MESH_FREQ, MESH_BAND, MESH_SPRED, MESH_KEY)
+    """ % (request.UserAddress[0], NODE_SSID, NODE_PASS, NODE_MAC, NODE_NAME, MESH_FREQ, MESH_BAND, MESH_SPRED, MESH_KEY, NODE_TIME)
     request.Response.ReturnOk(content)
 
 # ------------------------------------------------------------------------
@@ -170,6 +279,7 @@ def RequestTestPost(microWebSrv2, request) :
     <html>
         <head>
             <title>POST 2/2</title>
+            <link rel="stylesheet" href="style.css" />
         </head>
         <body>
             <h2>MicroWebSrv2 - POST 2/2</h2>
@@ -193,10 +303,12 @@ def RequestTestPost(microWebSrv2, request) :
 def RequestTestPost(microWebSrv2, request) :
     NODE_STATE = pymesh.status_str()
     try:
+        HTML_LEADER = leader
         NODE_MML_LEN = len(RECEIVED_MAC_LIST)
         NODE_MML = RECEIVED_MAC_LIST
         # leader = find_leader()
     except:
+        HTML_LEADER = "No Leader currently"
         NODE_MML_LEN = "No Mesh list, not received from leader"
         NODE_MML = "No Mesh list, not received from leader"
 
@@ -303,7 +415,7 @@ def RequestTestPost(microWebSrv2, request) :
             </form>
         </body>
     </html>
-    """ % (NODE_STATE, NODE_MAC, NODE_MML_LEN, NODE_MML, leader)
+    """ % (NODE_STATE, NODE_MAC, NODE_MML_LEN, NODE_MML, HTML_LEADER)
     request.Response.ReturnOk(content)
 
 # ------------------------------------------------------------------------
@@ -329,6 +441,7 @@ def RequestTestPost(microWebSrv2, request) :
     <html>
         <head>
             <title>POST Diagnostic 2/2</title>
+            <link rel="stylesheet" href="style.css" />
         </head>
         <body>
             <h2>MicroWebSrv2 - POST 2/2</h2>
@@ -430,7 +543,7 @@ def WSJoinChat(webSocket) :
                     webSocket.SendTextMessage('No nodes have joined chat, wait and refresh page')
 
     print("The current macs are %s" % macs)
-    msg1 = make_message_status(('A user from %s has joined>', NODE_NAME))
+    msg1 = make_message_status(('A user from %s has joined>' % NODE_NAME))
     msg_update = last_10_messages()
     with _chatLock :
         for ws in _chatWebSockets :
@@ -455,10 +568,6 @@ def WSJoinChat(webSocket) :
 
 def OnWSChatTextMsg(webSocket, msg) :
     gc.collect()
-    if msg[:11] == ("JM send SMS"):
-        print("You attempted to send a txt")
-    else:
-        print("NOthing to send")
     send_leader_hi(leader)
     my_mac = pymesh.mesh.mesh.MAC
     time.sleep(1)
@@ -492,8 +601,9 @@ def OnWSChatTextMsg(webSocket, msg) :
             gc.collect()
         # pymesh.send_mess('ff03::1', new_msg)
         for mac in macs:
+            print(macs)
             if mac == my_mac:
-                continue
+                print("skip")
             else:
                 pymesh.send_mess(mac, str(msg))
                 gc.collect()
@@ -716,24 +826,32 @@ def how_time_set(sending_mac):
 
 def pop_mesh_pairs_list():
     mps = pymesh.mesh.get_mesh_pairs()
-    have_mps = False
-    while have_mps == False:
-        time.sleep(1)
+    if len(mps) == 0:
+        time.sleep(5)
         mps = pymesh.mesh.get_mesh_pairs()
-        time.sleep(1)
-        if len(mps) != 0:
-            have_mps = True
-    return mps
+        if len(mps) == 0:
+            time.sleep(5)
+            mps = pymesh.mesh.get_mesh_pairs()
+        else:
+            return mps
+    else:
+        return mps
 
 def find_leader():
     node_state = pymesh.status_str()
     print("Node state : %s" % str(node_state))
     my_mac = str(pymesh.mesh.mesh.MAC)
+    mesh_mac_list = pymesh.mesh.get_mesh_mac_list()
     if node_state[:6] == 'Role 4':
         leader_mac = my_mac
+    elif len(mesh_mac_list) == 2:
+        leader_mac = mesh_mac_list.remove(my_mac)
     else:
         mps = pop_mesh_pairs_list()
-        leader_mac = mps[0][1]
+        try:
+            leader_mac = mps[0][1]
+        except:
+            leader_mac = NODE_MAC
     return leader_mac
 
 def send_battery_voltage(sending_mac):
@@ -804,6 +922,7 @@ def add_me_leader(sending_mac):
             time.sleep(1)
 
 def leader_gets_own_mesh_macs():
+    my_mac = str(pymesh.mesh.mesh.MAC)
     with open('/sd/www/leader_mesh_list.txt') as f:
         temp_mac_list = f.read().split('\r\n')
         f.close()
@@ -903,6 +1022,22 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         elif msg[:12] == "JM send name":
             sending_mac = msg[13:]
             send_name(sending_mac)
+        elif msg[:11] == "JM send sms":
+            sen_to_number = msg[12:23] #JM send sms 15084103870 Yo dude are we there yet?
+            print(sen_to_number)
+            sms_msg = msg[24:]
+            print(sms_msg)
+            try:
+                print("Sending SMS")
+                lte_comms.send_sms(sen_to_number, sms_msg)
+            except:
+                print("No LTE")
+        elif msg[:11] == "JM send csq":
+            sending_mac = msg[12:]
+            lte_comms.signal_strength()
+        elif msg[:11] == "JM read sms":
+            sending_mac = msg[12:]
+            lte_comms.check_read_sms()
 
 
     else:
@@ -1005,15 +1140,21 @@ if uos.uname().sysname == 'FiPy':
         print('still broken')
 
     try:
+        print("Attaching LTE to network")
         _thread.start_new_thread(lte_comms.attach_LTE, ())
-        time.sleep(60)
     except:
         print("Not a fipy")
 
+    # try:
+    #     lte_comms.send_sms(19254876005, "From Jamie: A new day a new test.")
+    # except:
+    #     print("sending sms broke")
+
     try:
-        lte_comms.send_sms(19254876005, "From Jamie: Message me if you get this, try 2, cuz not sure if worked")
+        print("Starting to monitor for new SMS in 60 seconds")
+        _thread.start_new_thread(lte_comms.receive_and_forward_to_chat, ())
     except:
-        print("sending sms broke")
+        print("retreiving text messages broke")
 
     # try:
     #     _thread.start_new_thread(lte_comms.connect_lte_data, ())
@@ -1067,11 +1208,12 @@ print("Current available memory after wifi ap loads: %d" % gc.mem_free())
 def wake_up_leader_to_add():
     if mac != leader:
         send_leader_hi(leader)
-        time.sleep(1)
+        time.sleep(4)
         send_leader_hi(leader)
-        print("Sending Hi to leader")
 
-_thread.start_new_thread(wake_up_leader_to_add, ())
+gc.collect()
+# _thread.start_new_thread(wake_up_leader_to_add, ())
+wake_up_leader_to_add()
 
 # Main program loop until keyboard interrupt,
 try :

@@ -92,7 +92,7 @@ class MeshInterface:
 
                 if time.time() - self.single_leader_ts > 180:
                     print("Single Leader, just reset")
-                    # machine.reset()
+                    machine.reset()
                     if self.sleep_function:
                         self.sleep_function(1)
                     else:

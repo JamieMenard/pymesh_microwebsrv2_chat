@@ -42,10 +42,10 @@ class Pymesh:
         # watchdog = Watchdog(meshaging, mesh)
 
         # self.mesh.statistics.sleep_function = self.deepsleep_init
-        self.mesh.sleep_function = self.deepsleep_now
+        self.mesh.sleep_function = self.deepsleep_init
 
         self.cli = Cli(self.mesh)
-        self.cli.sleep = self.deepsleep_now
+        self.cli.sleep = self.deepsleep_init
         _thread.start_new_thread(self.process, (1,2))
         _thread.start_new_thread(self.cli.process, (1, 2))
 
