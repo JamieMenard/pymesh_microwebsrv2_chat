@@ -8,6 +8,7 @@
 
 from network import LoRa
 import socket
+import _thread
 import time
 import utime
 import ubinascii
@@ -179,9 +180,13 @@ class Loramesh:
     def led_state(self):
         """ Sets the LED according to the Thread role """
         if self.state == STATE_LEADER and self.mesh.single():
-            pycom.rgbled(self.RGBLED[self.STATE_LEADER_SINGLE])
+            pycom.rgbled(0x000A0A)
+            time.sleep(1)
+            pycom.rgbled(0)
         elif self.state == STATE_DETACHED:
-            pycom.rgbled(self.RGBLED[self.state])
+            pycom.rgbled(0x0A0000)
+            time.sleep(1)
+            pycom.rgbled(0)
         else:
             do_nothing = "yes"
             # pycom.rgbled(self.RGBLED[self.state])
@@ -261,6 +266,16 @@ class Loramesh:
             pycom.rgbled(color)
             time.sleep(period)
         self.led_state()
+
+    def slow_blink():
+        # supposed to be for continually blink status in a thread till state change
+        color = self.RGBLED[self.state]
+        for _ in range(num):
+            pycom.rgbled(0)
+            time.sleep(1)
+            pycom.rgbled(color)
+            time.sleep(1)
+            pycom.rgbled(0)
 
     def neighbors_update(self):
         """ update neigh_dict from cli:'neighbor table' """

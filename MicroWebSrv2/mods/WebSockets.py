@@ -397,22 +397,6 @@ class WebSocket :
 
     # ------------------------------------------------------------------------
 
-    def SendMeshMessage(self, macs) :
-        #if len(msg) == 0 :
-            #raise ValueError('"msg" must be a not empty.')
-        print("sending mac list")
-        if not self._isClosed :
-            try :
-                mac = mac.encode('UTF-8')
-            except :
-                return False
-            print(macs)
-            return self._sendFrame(WebSocket._OP_FRAME_TEXT, macs)
-
-        return False
-
-    # ------------------------------------------------------------------------
-
     def Close(self) :
         if not self._isClosed :
             self._close(1000, 'Normal closure', waitCloseFrame=True)
