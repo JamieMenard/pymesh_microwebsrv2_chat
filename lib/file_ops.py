@@ -12,7 +12,7 @@ def sd_setup():
         #     print('did not delete')
         try:
             f = open('/sd/www/ack_log.txt', 'r')
-            print("Already a ACK log, trimmed to last 100 ACKs")
+            print("Already a ACK log, trimmed to last 50 ACKs")
             acks = f.readlines()
             f.close()
             os.remove('/sd/www/ack_log.txt')
@@ -33,7 +33,7 @@ def sd_setup():
 
         try:
             f = open('/sd/www/status_log.txt', 'r')
-            print("Already a status log, trimmed to last 100 entries.")
+            print("Already a status log, trimmed to last 50 entries.")
             status = f.readlines()
             f.close()
             os.remove('/sd/www/status_log.txt')
@@ -54,7 +54,7 @@ def sd_setup():
 
         try:
             f = open('/sd/www/chat.txt', 'r')
-            print("Already a chat log, trimmed to last 100 entries.")
+            print("Already a chat log, trimmed to last 50 entries.")
             chats = f.readlines()
             f.close()
             os.remove('/sd/www/chat.txt')
@@ -154,13 +154,14 @@ def sd_setup():
 
         try:
             f = open('/sd/www/sms.txt', 'r')
-            print("Already a SMS log, trimmed to last 100 SMSs")
+            print("Already a SMS log, trimmed to last 50 SMSs")
             sms = f.readlines()
             f.close()
             os.remove('/sd/www/sms.txt')
             n = open('/sd/www/sms.txt', 'w+')
             for i in sms[-50:]:
-                n.write(i)
+                if i != '\r\n':
+                    n.write(i)
             n.close()
         except:
             try:

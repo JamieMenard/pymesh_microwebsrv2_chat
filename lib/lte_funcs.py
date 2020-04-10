@@ -10,6 +10,7 @@ except:
 
 class LteComms:
     def __init__(self):
+        self.message_storage = 'AT+CPMS="SM", "SM", "SM"'
         try:
             self.lte = LTE()
             time.sleep(4)
@@ -115,6 +116,8 @@ class LteComms:
         #     # self.receive_and_forward_to_chat()
         #     continue
         # print("Modem not attached")
+        print("set to check messages on sim")
+        self.at(self.message_storage)
 
 
     def connect_lte_data(self):
@@ -158,28 +161,43 @@ class LteComms:
         print("sent!")
 
     def receive_and_forward_to_chat(self):
-        time.sleep(60)
         # this will somehow have to be connected to the chat with a JM msg1
         print("set mode to text")
         self.at('AT+CMGF=1')
-        print("set to check messages on sim")
-        self.at('AT+CPMS="SM", "SM", "SM"')
-        while self.lte.isattached():
-            try:
-                msg_list =self.at('AT+CMGL="REC UNREAD"')
-            except:
-                print("no message")
-            if len(msg_list) > 2:
-                parsed_msg_list = self.msg_parse(msg_list)
-                print("Writing to SMS log")
-                f = open('/sd/www/sms.txt', 'a+')
-                for i in range(len(parsed_msg_list)):
-                    f.write(str(parsed_msg_list[i]))
-                    f.write('\r\n')
-                f.close()
-            # Cuz apparently you need to clean out the sim card, it only holds 10 msgs
+        msg_list = []
+        msg_list = self.at('AT+CMGL="ALL"')
+        number_of_messages = 0
+        if len(msg_list) > 1:
+            print("This'll print if there a msg")
+            if len(msg_list) > 20:
+                print("More then 10 messages, loop")
+                i = 1
+                while len(msg_list) > 20:
+                    print("This is the inner loop running %s times" % i)
+                    msg_list = self.at('AT+CMGL="ALL"')
+                    number_of_messages += len(msg_list)
+                    self.write_msg_to_file_and_delete(msg_list)
+                    time.sleep(15)
+                    i += 1
+                print("This is to get the last group of messages")
+                # you don't scan for messages while it sleep, almost Need
+                # to run this in a thread in the background.
+                time.sleep(10)
+                msg_list = self.at('AT+CMGL="ALL"')
+                number_of_messages += len(msg_list)
+                self.write_msg_to_file_and_delete(msg_list)
+            else:
+                print("The list is less than 10, so straight to file")
+                number_of_messages += len(msg_list)
+                self.write_msg_to_file_and_delete(msg_list)
+        else:
+            print("This prints when no messages")
             self.at('AT+CMGD=1,4')
-            time.sleep(60)
+        # Cuz apparently you need to clean out the sim card, it only holds 10 msgs
+        # at('AT+CMGD=1,4')
+        time.sleep(5)
+        actual_messages = (number_of_messages/2) - 1
+        print(actual_messages)
 
     def msg_parse(self, msg_list):
         parsed_msg_list = []
@@ -210,4 +228,14 @@ class LteComms:
         msg_list =self.at('AT+CMGL="ALL"')
         print(msg_list)
 
+    def write_msg_to_file_and_delete(self, msg_list):
+        parsed_msg_list = self.msg_parse(msg_list)
+        print("Writing to SMS log")
+        f = open('/sd/www/sms.txt', 'a+')
+        for i in range(len(parsed_msg_list)):
+            if parsed_msg_list[i] != '\r\n':
+                f.write(str(parsed_msg_list[i]))
+                f.write('\r\n')
+        f.close()
+        self.at('AT+CMGD=1,4')
 

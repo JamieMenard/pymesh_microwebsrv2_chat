@@ -10,7 +10,7 @@ from pycoproc import Pycoproc
 from time          import sleep
 from _thread       import allocate_lock
 
-
+import chat_msg_funcs as cmf
 import gc
 import machine
 import file_ops
@@ -37,7 +37,7 @@ from pymesh import Pymesh
 # except:
 #     from _pymesh import Pymesh
 
-lh_mesh_version = "1.1.4"
+lh_mesh_version = "1.1.6"
 
 
 # ============================================================================
@@ -50,17 +50,26 @@ def RequestTestRedirect(microWebSrv2, request) :
 
 @WebRoute(GET, '/comms', name='Comms1/2')
 def RequestTestPost(microWebSrv2, request) :
+    # check for LTE messages if LTE Modem
+    try:
+        print("checking for LTE msgs")
+        gc.collect()
+        _thread.start_new_thread(lte_comms.receive_and_forward_to_chat, ())
+        lte_status_msg = "This node has LTE, last pulled messages listed below"
+    except:
+        print("Node doesn't have LTE, request list from LTE NODE.")
+        lte_status_msg = "Node doesn't have LTE, request list from LTE NODE."
+    time.sleep(5)
+
     with open('/sd/www/sms.txt', 'r') as f:
         sms_temp = f.read().split('\r\n')
         f.close()
 
     SMS = [string for string in sms_temp if string != ""]
-    print(SMS)
+
     SMS = SMS[-5:]
-    print(SMS)
     try:
         sms1 = SMS[0]
-        print("SMS 0: %s" % SMS[0])
     except:
         sms1 = ' '
     try:
@@ -92,6 +101,9 @@ def RequestTestPost(microWebSrv2, request) :
             <h2>LHVW Comms Page 1/2</h2>
             <br />
             <form action="/comms" method="post">
+                %s<br />
+                Refresh this page for latest SMS messages.<br />
+                <br />
                 Add html for sennding messages to external chat rooms, SMS, <br />
                 and for sending webpage scrape requests to BR and LTE<br />
                 Will need methods for finding which nodes are BR or LTE<br />
@@ -106,6 +118,7 @@ def RequestTestPost(microWebSrv2, request) :
                 <br />
                 <br />
                 Last 5 SMS messages will show if this node has LTE:
+                <br />
                 %s<br />
                 %s<br />
                 %s<br />
@@ -114,7 +127,7 @@ def RequestTestPost(microWebSrv2, request) :
 
 
     </html>
-    """ % (NODE_NAME, sms1, sms2, sms3, sms4, sms5)
+    """ % (lte_status_msg, NODE_NAME, sms1, sms2, sms3, sms4, sms5)
     request.Response.ReturnOk(content)
 
 # ------------------------------------------------------------------------
@@ -243,7 +256,7 @@ def RequestTestPost(microWebSrv2, request) :
         print(device_time)
         print(type(device_time))
 
-        set_js_time(device_time)
+        cmf.set_js_time(rtc, device_time)
 
         node_dict = {
         'WIFI_SSID': str(ssid),
@@ -269,7 +282,7 @@ def RequestTestPost(microWebSrv2, request) :
         print("Failed")
 
     try:
-        write_json_config_file(mac, mesh_freq, mesh_band, spread_fact, mesh_key)
+        cmf.write_json_config_file(mac, mesh_freq, mesh_band, spread_fact, mesh_key)
         print("written")
     except:
         print("Not writing json")
@@ -453,7 +466,7 @@ def RequestTestPost(microWebSrv2, request) :
                 Go back to the status log and refresh to see response: « <a href="/status_log.txt">Status Log</a> »
             </p>
             <p>
-                Or go to the ack log and refresh to see if message was received: « <a href="/status_log.txt">Status Log</a> »
+                Or go to the ack log and refresh to see if message was received: « <a href="/ack_log.txt">Ack Log</a> »
             </p>
             Or go back to home if done <br />
             <p>
@@ -478,7 +491,7 @@ def OnWebSocketAccepted(microWebSrv2, webSocket) :
     send_leader_hi(leader)
     my_mac = pymesh.mesh.mesh.MAC
     if my_mac == leader:
-        macs = leader_gets_own_mesh_macs()
+        macs = cmf.leader_gets_own_mesh_macs(pymesh)
     else:
         ask_for_mesh_macs(leader)
     if webSocket.Request.Path.lower() == '/wschat' :
@@ -527,7 +540,7 @@ def WSJoinChat(webSocket) :
     my_mac = pymesh.mesh.mesh.MAC
     print("Ask leader for mac list")
     if my_mac == leader:
-        macs = leader_gets_own_mesh_macs()
+        macs = cmf.leader_gets_own_mesh_macs(pymesh)
     else:
         try:
             macs = RECEIVED_MAC_LIST
@@ -543,8 +556,8 @@ def WSJoinChat(webSocket) :
                     webSocket.SendTextMessage('No nodes have joined chat, wait and refresh page')
 
     print("The current macs are %s" % macs)
-    msg1 = make_message_status(('A user from %s has joined>' % NODE_NAME))
-    msg_update = last_10_messages()
+    msg1 = cmf.make_message_status(('A user from %s has joined>' % NODE_NAME))
+    msg_update = cmf.last_10_messages()
     with _chatLock :
         for ws in _chatWebSockets :
             gc.collect()
@@ -555,10 +568,9 @@ def WSJoinChat(webSocket) :
         # pymesh.send_mess('ff03::1', msg1)
         # pymesh.send_mess('ff03::1', msg2)
         for mac in macs:
-            if mac == my_mac:
+            if str(mac) == str(my_mac):
                 print("skip")
             else:
-                print(mac)
                 pymesh.send_mess(mac, msg1)
                 gc.collect()
                 time.sleep(1)
@@ -578,7 +590,7 @@ def OnWSChatTextMsg(webSocket, msg) :
     time.sleep(1)
     addr = webSocket.Request.UserAddress
     if my_mac == leader:
-        macs = leader_gets_own_mesh_macs()
+        macs = cmf.leader_gets_own_mesh_macs(pymesh)
     else:
         try:
             macs = RECEIVED_MAC_LIST
@@ -593,7 +605,7 @@ def OnWSChatTextMsg(webSocket, msg) :
                 with _chatLock :
                     webSocket.SendTextMessage('No nodes have joined chat, wait and refresh page')
     len_mac = (len(macs)-1)
-    now_time = current_time()
+    now_time = cmf.current_time()
     with _chatLock :
         for ws in _chatWebSockets :
             self_node_msg = ("Sent to %s nodes: %s" % (len_mac, msg))
@@ -601,8 +613,7 @@ def OnWSChatTextMsg(webSocket, msg) :
             gc.collect()
         # pymesh.send_mess('ff03::1', new_msg)
         for mac in macs:
-            print(macs)
-            if mac == my_mac:
+            if str(mac) == str(my_mac):
                 print("skip")
             else:
                 pymesh.send_mess(mac, str(msg))
@@ -629,7 +640,7 @@ def OnWSChatClosed(webSocket) :
             macs = RECEIVED_MAC_LIST
         except:
             print("somethings locked up")
-    msg1 = make_message_status(('<User HAS LEFT THE CHAT>'))
+    msg1 = cmf.make_message_status(('<User HAS LEFT THE CHAT>'))
     pycom.rgbled(0x000A00)
     with _chatLock :
         if webSocket in _chatWebSockets :
@@ -656,48 +667,10 @@ def OnMWS2Logging(microWebSrv2, msg, msgType) :
 
 print()
 
-def set_js_time(jtime):
-    time_from_jtime = jtime[2:-2]
-    jtime_from_message_tuple = tuple(map(int, time_from_jtime.split(", ")))
-    rtc.init(jtime_from_message_tuple)
-    print("Time set")
-
-def last_10_messages():
-    with open('/sd/www/chat.txt', 'r') as f:
-        all_messages = f.read().split('\n')
-        f.close()
-    last_messages = all_messages[-11:]
-    return last_messages
-
-def write_json_config_file(mac, freq, band, sprd, key):
-    json_config = ('{"ble_api": false, "autostart": true, "ble_name_prefix": "PyGo ", "debug": 5, "LoRa": {"sf": %s, "region": 8, "freq": %s, "bandwidth": %s, "tx_power": 14}, "MAC": %s, "Pymesh": {"key": "%s"}}' % (sprd, freq, band, mac, key))
-    try:
-        with open('/sd/www/pymesh_config.json', 'w+') as f:
-            f.write(str(json_config))
-            f.close()
-    except:
-        print("File didn't write")
-
-def create_node_config_dict():
-    node_config_dict = {}
-    try:
-        with open('/sd/www/node_config.txt') as f:
-            node_config_list_from_file = f.read().split('\r\n')
-            f.close()
-    except:
-        with open('/node_config.txt') as f:
-            node_config_list_from_file = f.read().split('\r\n')
-            f.close()
-    node_config_list = node_config_list_from_file[:8]
-    for i in range(len(node_config_list)):
-        temp_list = list(node_config_list[i].split(', '))
-        node_config_dict[temp_list[0]] = temp_list[1]
-    return node_config_dict
-
 def sending_gps(sending_mac):
     if pytrack_s == True:
         coord = l76.coordinates()
-        msg = make_message_status(str(coord))
+        msg = cmf.make_message_status(str(coord))
         time.sleep(1)
         with _chatLock :
             for ws in _chatWebSockets :
@@ -706,7 +679,7 @@ def sending_gps(sending_mac):
             time.sleep(1)
     elif pytrack_s == False:
         no_gps = "This node doesn't have GPS"
-        msg = make_message_status(no_gps)
+        msg = cmf.make_message_status(no_gps)
         with _chatLock :
             for ws in _chatWebSockets :
                     ws.SendTextMessage(msg)
@@ -718,13 +691,13 @@ def send_baro(sending_mac):
         if len(sending_mac) == 0:
             print("Mac address format wrong")
             return
-        msg1 = make_message_status(("MPL3115A2 temperature: " + str(mp.temperature())+
+        msg1 = cmf.make_message_status(("MPL3115A2 temperature: " + str(mp.temperature())+
                 " Altitude: " + str(mp.altitude())))
         pymesh.send_mess(sending_mac, str(msg1))
         time.sleep(1)
     elif pysense_s == False:
         no_baro = "This node doesn't have Baro"
-        msg = make_message_status(no_baro)
+        msg = cmf.make_message_status(no_baro)
         with _chatLock :
             for ws in _chatWebSockets :
                     ws.SendTextMessage(msg)
@@ -736,13 +709,13 @@ def send_temp(sending_mac):
         if len(sending_mac) == 0:
             print("Mac address format wrong")
             return
-        msg1 = make_message_status(("Temperature: " + str(si.temperature())+
+        msg1 = cmf.make_message_status(("Temperature: " + str(si.temperature())+
                 " deg C and Relative Humidity: " + str(si.humidity()) + " %RH"))
         pymesh.send_mess(sending_mac, str(msg1))
         time.sleep(1)
     elif pysense_s == False:
         no_temp = "This node doesn't have Temp"
-        msg = make_message_status(no_temp)
+        msg = cmf.make_message_status(no_temp)
         with _chatLock :
             for ws in _chatWebSockets :
                     ws.SendTextMessage(msg)
@@ -753,26 +726,13 @@ def send_mesh_version(sending_mac):
     if len(sending_mac) == 0:
         print("Mac address format wrong")
         return
-    msg = make_message_status(("Node SW version: %s" % lh_mesh_version))
+    msg = cmf.make_message_status(("Node SW version: %s" % lh_mesh_version))
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
                 ws.SendTextMessage(msg)
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(1)
-
-def make_message_status(msg):
-    status_msg = ("STATUS: %s" % msg)
-    return status_msg
-
-def format_time(given_time):
-    format_time = ("[%d:%d %d/%d]"  % (given_time[3], given_time[4], given_time[1], given_time[2]))
-    return format_time
-
-def current_time():
-    current_time = utime.localtime()
-    formatted_time = format_time(current_time)
-    return formatted_time
 
 def set_time(sending_mac, msg):
     if len(sending_mac) == 0:
@@ -782,77 +742,13 @@ def set_time(sending_mac, msg):
     print(time_from_message_string)
     time_from_message_tuple = tuple(map(int, time_from_message_string.split(", ")))
     rtc.init(time_from_message_tuple)
-    msg = make_message_status("Time Set")
+    msg = cmf.make_message_status("Time Set")
     time.sleep(1)
     with _chatLock :
         for ws in _chatWebSockets :
                 ws.SendTextMessage(msg)
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(1)
-
-def first_time_set():
-    current_time = utime.localtime()
-    if current_time[0] == 1970:
-        print("Time's wrong, send request to fix")
-        wake = make_message_status("wake up 1!")
-        time.sleep(1)
-        pymesh.send_mess(1, str(wake))
-        time.sleep(1)
-        msg = ("JM set my time %s" % str(mac))
-        pymesh.send_mess(1, str(msg))
-        time.sleep(1)
-    else:
-        print("Time is correct")
-
-def set_my_time(sending_mac):
-    if len(sending_mac) == 0:
-        print("Mac address format wrong")
-    else:
-        now_time = utime.localtime()
-        msg = ("JM set time 01 %s" % str(now_time))
-        time.sleep(1)
-        pymesh.send_mess(sending_mac, str(msg))
-        time.sleep(1)
-
-def how_time_set(sending_mac):
-    if len(sending_mac) == 0:
-        print("Mac address format wrong")
-    else:
-        now_time = current_time()
-        msg = make_message_status(("Current:" + now_time + " Else, (year, month, day, hours, minutes, seconds, micros, timezone)"))
-        time.sleep(1)
-        pymesh.send_mess(sending_mac, str(msg))
-        time.sleep(1)
-
-def pop_mesh_pairs_list():
-    mps = pymesh.mesh.get_mesh_pairs()
-    if len(mps) == 0:
-        time.sleep(5)
-        mps = pymesh.mesh.get_mesh_pairs()
-        if len(mps) == 0:
-            time.sleep(5)
-            mps = pymesh.mesh.get_mesh_pairs()
-        else:
-            return mps
-    else:
-        return mps
-
-def find_leader():
-    node_state = pymesh.status_str()
-    print("Node state : %s" % str(node_state))
-    my_mac = str(pymesh.mesh.mesh.MAC)
-    mesh_mac_list = pymesh.mesh.get_mesh_mac_list()
-    if node_state[:6] == 'Role 4':
-        leader_mac = my_mac
-    elif len(mesh_mac_list) == 2:
-        leader_mac = mesh_mac_list.remove(my_mac)
-    else:
-        mps = pop_mesh_pairs_list()
-        try:
-            leader_mac = mps[0][1]
-        except:
-            leader_mac = NODE_MAC
-    return leader_mac
 
 def send_battery_voltage(sending_mac):
     if len(sending_mac) == 0:
@@ -861,19 +757,15 @@ def send_battery_voltage(sending_mac):
     try:
         volts = str(py.read_battery_voltage())
         own_mac = str(pymesh.mesh.mesh.MAC)
-        msg = make_message_status(('Mac Address %s battery level is: %s' % (own_mac, volts)))
+        msg = cmf.make_message_status(('Mac Address %s battery level is: %s' % (own_mac, volts)))
         time.sleep(1)
         with _chatLock :
-            for ws in _chatWebSockets :
-                    ws.SendTextMessage(msg)
             pymesh.send_mess(sending_mac, str(msg))
             time.sleep(1)
     except:
         if exp31 == True:
-            msg = make_message_status("No ADC")
+            msg = cmf.make_message_status("No ADC")
             with _chatLock :
-                for ws in _chatWebSockets :
-                        ws.SendTextMessage(msg)
                 pymesh.send_mess(sending_mac, str(msg))
                 time.sleep(1)
 
@@ -882,13 +774,23 @@ def send_self_info(sending_mac):
         print("Mac address format wrong")
         return
     node_info = str(pymesh.mesh.get_node_info())
-    msg = make_message_status(("self info: %s" % node_info))
+    msg = cmf.make_message_status(("self info: %s" % node_info))
     time.sleep(1)
     with _chatLock :
-        for ws in _chatWebSockets :
-                ws.SendTextMessage(msg)
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(1)
+
+def ask_nodes_if_lte(mml):
+    print("will have this ask nodes if LTE")
+
+def reply_if_lte(sending_mac):
+    print("This will respond if LTE")
+
+def ask_nodes_if_BR(mml):
+    print("This will ask if nodes are BR")
+
+def reply_if_BR(sending_mac):
+    print("This will reply if node is BR")
 
 def send_leader_hi(leader):
     my_mac = str(pymesh.mesh.mesh.MAC)
@@ -900,10 +802,9 @@ def send_leader_hi(leader):
             pymesh.send_mess(leader, str(msg))
             time.sleep(1)
 
-
 def add_me_leader(sending_mac):
     print("Adding to mesh leader mac list")
-    msg = make_message_status("Node Added")
+    msg = cmf.make_message_status("Node Added")
     with open('/sd/www/leader_mesh_list.txt') as f:
         temp_mac_list = f.read().split('\r\n')
         f.close()
@@ -920,15 +821,6 @@ def add_me_leader(sending_mac):
         with _chatLock :
             pymesh.send_mess(sending_mac, str(msg))
             time.sleep(1)
-
-def leader_gets_own_mesh_macs():
-    my_mac = str(pymesh.mesh.mesh.MAC)
-    with open('/sd/www/leader_mesh_list.txt') as f:
-        temp_mac_list = f.read().split('\r\n')
-        f.close()
-    mac_list = list( dict.fromkeys(temp_mac_list[:-1]) )
-    mac_list.append(my_mac)
-    return mac_list
 
 def ask_for_mesh_macs(leader):
     my_mac = str(pymesh.mesh.mesh.MAC)
@@ -951,15 +843,6 @@ def send_back_mml(sending_mac):
         pymesh.send_mess(sending_mac, str(msg))
         time.sleep(1)
 
-def save_mml(msg):
-    mac_string = msg[1:-1]
-    # temp_mac_list = mac_string.split(", ")
-    temp_string = mac_string.strip("'")
-    temp_mac_list = temp_string.split("', '")
-    mac_list = []
-    mac_list = [int(i) for i in temp_mac_list]
-    return mac_list
-
 def send_name(sending_mac):
     with _chatLock :
         pymesh.send_mess(sending_mac, str(NODE_NAME))
@@ -969,7 +852,7 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
     ''' callback triggered when a new packet arrived '''
     print('Incoming %d bytes from %s (port %d):' %
             (len(rcv_data), rcv_ip, rcv_port))
-    now_time = current_time()
+    now_time = cmf.current_time()
     msg = rcv_data.decode("utf-8")
     if msg[:6] == "STATUS":
         f = open('/sd/www/status_log.txt', 'a+')
@@ -991,7 +874,7 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
             set_time(sending_mac, msg)
         elif msg[:10] == "JM how set":
             sending_mac = msg[11:]
-            how_time_set(sending_mac)
+            cmf.how_time_set(pymesh, sending_mac)
         elif msg[:11] == "JM send GPS":
             sending_mac = msg[12:]
             sending_gps(sending_mac)
@@ -1003,9 +886,9 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
             send_temp(sending_mac)
         elif msg[:14] == "JM set my time":
             sending_mac = msg[15:]
-            set_my_time(sending_mac)
+            cmf.set_my_time(pymesh, sending_mac)
         elif msg[:16] == "JM set your time":
-            first_time_set()
+            cmf.first_time_set(pymesh)
         elif msg[:11] == "JM send swv":
             sending_mac = msg[12:]
             send_mesh_version(sending_mac)
@@ -1018,7 +901,7 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         elif msg[:14] == "JM receive mml":
             msg = msg[15:]
             global RECEIVED_MAC_LIST
-            RECEIVED_MAC_LIST = save_mml(msg)
+            RECEIVED_MAC_LIST = cmf.save_mml(msg)
         elif msg[:12] == "JM send name":
             sending_mac = msg[13:]
             send_name(sending_mac)
@@ -1038,8 +921,6 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
         elif msg[:11] == "JM read sms":
             sending_mac = msg[12:]
             lte_comms.check_read_sms()
-
-
     else:
         with _chatLock :
             for ws in _chatWebSockets :
@@ -1055,6 +936,7 @@ def new_message_cb(rcv_ip, rcv_port, rcv_data):
             pycom.rgbled(0)
             time.sleep(.1)
         pycom.rgbled(0x000066)
+        gc.collect()
 
     return
 gc.enable()
@@ -1066,7 +948,7 @@ file_ops.sd_setup()
 
 # read config file, or set default values
 
-node_dict = create_node_config_dict()
+node_dict = cmf.create_node_config_dict()
 
 NODE_SSID = node_dict['WIFI_SSID']
 NODE_PASS = node_dict['WIFI_PASS']
@@ -1135,13 +1017,16 @@ if uos.uname().sysname == 'FiPy':
     try:
         lte_comms = ltef.LteComms()
         print("LTE communication being setup")
+        HAS_LTE = True
         time.sleep(5)
     except:
         print('still broken')
 
     try:
         print("Attaching LTE to network")
+        gc.collect()
         _thread.start_new_thread(lte_comms.attach_LTE, ())
+        gc.collect()
     except:
         print("Not a fipy")
 
@@ -1150,11 +1035,12 @@ if uos.uname().sysname == 'FiPy':
     # except:
     #     print("sending sms broke")
 
-    try:
-        print("Starting to monitor for new SMS in 60 seconds")
-        _thread.start_new_thread(lte_comms.receive_and_forward_to_chat, ())
-    except:
-        print("retreiving text messages broke")
+    # try:
+    #     print("Starting to monitor for new SMS in 60 seconds")
+    #     _thread.start_new_thread(lte_comms.receive_and_forward_to_chat, ())
+    #     gc.collect()
+    # except:
+    #     print("retreiving text messages broke")
 
     # try:
     #     _thread.start_new_thread(lte_comms.connect_lte_data, ())
@@ -1179,7 +1065,7 @@ if uos.uname().sysname == 'FiPy':
 else:
     print("Not a fipy")
 
-first_time_set()
+cmf.first_time_set(pymesh)
 pycom.rgbled(0x000A00)
 gc.collect()
 # Loads the WebSockets module globally and configure it,
@@ -1202,7 +1088,7 @@ mws2.NotFoundURL = '/'
 mws2.StartManaged()
 node_state = pymesh.status_str()
 print("Node state : %s" % str(node_state))
-leader = find_leader()
+leader = cmf.find_leader(pymesh)
 print("Current available memory after wifi ap loads: %d" % gc.mem_free())
 
 def wake_up_leader_to_add():
@@ -1226,6 +1112,7 @@ except KeyboardInterrupt :
 print()
 mws2.Stop()
 print('Bye')
+gc.collect()
 print()
 
 # ============================================================================
