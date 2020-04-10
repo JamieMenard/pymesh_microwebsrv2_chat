@@ -6,6 +6,7 @@
 # see the Pycom Licence v1.0 document supplied with this file, or
 # available at https://www.pycom.io/opensource/licensing
 
+import gc
 import time
 import machine
 from machine import Timer
@@ -73,6 +74,7 @@ class MeshInterface:
 
     def periodic_cb(self, alarm):
         # wait lock forever
+        gc.collect()
         if self.lock.acquire():
             print_debug(2, "============ MESH THREAD >>>>>>>>>>> ")
             t0 = time.ticks_ms()
