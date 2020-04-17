@@ -84,7 +84,7 @@ class MeshInterface:
                 # self.statistics.process()
                 self.mesh.process_messages()
 
-            # if Single Leader for 3 mins should reset
+            # if Single Leader for 5 mins should reset
             if self.mesh.mesh.state == self.mesh.mesh.STATE_LEADER and self.mesh.mesh.mesh.single():
                 if self.single_leader_ts == 0:
                     # first time Single Leader, record time
@@ -92,9 +92,10 @@ class MeshInterface:
                 print("Single Leader", self.mesh.mesh.state, self.mesh.mesh.mesh.single(),
                     time.time() - self.single_leader_ts)
 
-                if time.time() - self.single_leader_ts > 180:
+                if time.time() - self.single_leader_ts > 300:
                     print("Single Leader, just reset")
-                    machine.reset()
+                    self.mesh.mesh.mesh.deinit()
+                    # machine.reset() this might be causing nodes to boot loop
                     if self.sleep_function:
                         self.sleep_function(1)
                     else:

@@ -1,16 +1,60 @@
+import gc
 import pycom
 import socket
 import ssl
 import sys
 import time
+import _thread
+import uos
+
 try:
     from network import LTE
 except:
     print("No LTE Modem")
 
+def start_lte():
+    if uos.uname().sysname == 'FiPy':
+        try:
+            lte_comms = LteComms()
+            print("LTE communication being setup")
+            time.sleep(5)
+        except:
+            print('still broken')
+
+        try:
+            print("Attaching LTE to network")
+            gc.collect()
+            _thread.start_new_thread(lte_comms.attach_LTE, ())
+            gc.collect()
+            return lte_comms
+        except:
+            print("Not attached")
+    else:
+        print("Not a fipy")
+
+
+def get_sms(lte_comms):
+    if uos.uname().sysname == 'FiPy':
+        print("Starting to monitor for new SMS in 60 seconds")
+        _thread.start_new_thread(lte_comms.receive_and_forward_to_chat, ())
+        gc.collect()
+    else:
+        print("Not a fipy, not checking messages.")
+
+def lte_send_sms(lte_comms, number, msg):
+    lte_comms.send_sms(number, msg)
+
+def get_signal_strength(lte_comms):
+    lte_comms.signal_strength()
+
+def lte_check_read_sms(lte_comms):
+    lte_comms.check_read_sms()
+
+
 class LteComms:
     def __init__(self):
         self.message_storage = 'AT+CPMS="SM", "SM", "SM"'
+        gc.collect()
         try:
             self.lte = LTE()
             time.sleep(4)
@@ -29,6 +73,7 @@ class LteComms:
         return r
 
     def attach_LTE(self):
+        gc.collect()
         time.sleep(10.0)
 
         if self.lte.isattached():
