@@ -15,7 +15,7 @@ from _thread       import allocate_lock
 from pymesh        import Pymesh
 from pymesh_config import PymeshConfig
 
-lh_mesh_version = "1.1.7"
+lh_mesh_version = "1.1.8"
 
 # ============================================================================
 
