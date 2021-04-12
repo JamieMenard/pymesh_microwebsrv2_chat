@@ -15,7 +15,7 @@ from _thread       import allocate_lock
 from pymesh        import Pymesh
 from pymesh_config import PymeshConfig
 
-lh_mesh_version = "1.1.8"
+lh_mesh_version = "1.1.9"
 
 # ============================================================================
 
@@ -501,7 +501,7 @@ def WSJoinChat(webSocket) :
     print("Ask leader for mac list")
     leader = node.find_leader()
     if node.mac == leader:
-        macs = node.leader_gets_own_mesh_macs()
+        macs = node.leader_gets_own_mesh_macs()       
     else:
         try:
             macs = RECEIVED_MAC_LIST
