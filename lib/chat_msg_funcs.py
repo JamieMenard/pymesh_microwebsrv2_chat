@@ -135,6 +135,20 @@ class NodeFuncs:
             f.close()
         mac_list = list( dict.fromkeys(temp_mac_list[:-1]) )
         mac_list.append(self.mac)
+        #compare this list to mml list
+        mml_macs = self.pymesh.mesh.get_mesh_mac_list()
+        for i in range(20):
+            time.sleep(4)
+            mml_macs = self.pymesh.mesh.get_mesh_mac_list()
+            if len(mml_macs.get(0)) != 0:
+                have_mac_list = True
+                break
+            else:
+                mml_macs = []
+        string_mml_macs = [str(i) for i in mml_macs.get(0)]
+        resulting_list = list(mac_list)
+        resulting_list.extend(x for x in string_mml_macs if x not in resulting_list)
+        mac_list = resulting_list
         return mac_list
 
     def pop_mesh_pairs_list(self):
@@ -306,7 +320,21 @@ class NodeFuncs:
             temp_mac_list = f.read().split('\r\n')
             f.close()
         mac_list = list( dict.fromkeys(temp_mac_list[:-1]) )
-        mac_list.append(self.mac)
+        mac_list.append(self.mac) 
+        #compare this list to mml list
+        mml_macs = self.pymesh.mesh.get_mesh_mac_list()
+        for i in range(20):
+            time.sleep(4)
+            mml_macs = self.pymesh.mesh.get_mesh_mac_list()
+            if len(mml_macs.get(0)) != 0:
+                have_mac_list = True
+                break
+            else:
+                mml_macs = []
+        string_mml_macs = [str(i) for i in mml_macs.get(0)]
+        resulting_list = list(mac_list)
+        resulting_list.extend(x for x in string_mml_macs if x not in resulting_list)
+        mac_list = resulting_list
         msg = ("JM receive mml %s" % str(mac_list))
         self.pymesh.send_mess(sending_mac, str(msg))
         time.sleep(1)
